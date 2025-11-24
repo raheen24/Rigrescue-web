@@ -2,8 +2,8 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import CustomButton from "../components/GlobalBtn";
 import profileImage from "../assets/images/profile-image.png";
 import DeleteAccountModal from "../components/DeleteModal";
-import { useState, useEffect } from "react";
-import { getProfile, deleteProfile } from "../services";
+import { useState } from "react";
+import { useProfileQuery, useDeleteProfileMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import { useDispatch, useSelector } from "react-redux";
 import { setLogout } from "../redux/userslice";
@@ -17,39 +17,24 @@ export default function MyProfile() {
   const dispatch = useDispatch();
   const role = useSelector((state) => state.user.role);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [profileData, setProfileData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: profileData, isLoading, error } = useProfileQuery();
+  const deleteMutation = useDeleteProfileMutation();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      setLoading(true);
-      const result = await getProfile();
-      if (result.error) {
-        setError(result.error);
-        toast.error(result.error);
-      } else {
-        setProfileData(result.response.data.data);
-      }
-      setLoading(false);
-    };
-    fetchProfile();
-  }, []);
-
-  const handleDelete = async () => {
-    const result = await deleteProfile();
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("Account deleted successfully");
-      // Manual logout
-      dispatch(setLogout());
-      deleteCookie("token");
-      navigate("/");
-    }
+  const handleDelete = () => {
+    deleteMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("Account deleted successfully");
+        dispatch(setLogout());
+        deleteCookie("token");
+        navigate("/");
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    });
     setDeleteModalOpen(false);
   };
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className={`content_section ${
@@ -71,7 +56,7 @@ export default function MyProfile() {
         } home_page full-height`}
       >
         <div className="innerWrapper profileWrapper rounded-3 backgroundOfMY shadow-sm d-flex justify-content-center align-items-center">
-          <h4>Error loading profile: {error}</h4>
+          <h4>Error loading profile: {error.message}</h4>
         </div>
       </div>
     );
@@ -101,7 +86,7 @@ export default function MyProfile() {
             ></div>
 
             <img
-              src={profileData?.avatar || profileImage}
+              src={profileData?.data?.avatar || profileImage}
               alt="Profile"
               className="avatar rounded-circle position-absolute ms-4"
               style={{
@@ -121,8 +106,8 @@ export default function MyProfile() {
               <h4
                 className="name fw-bold m-0 text-center text-capitalize m-2"
               >
-                {profileData
-                  ? `${profileData.first_name} ${profileData.last_name}`
+                {profileData?.data
+                  ? `${profileData.data.first_name} ${profileData.data.last_name}`
                   : "N/A"}
               </h4>
             </div>
@@ -152,27 +137,27 @@ export default function MyProfile() {
               <div className="mb-4">
                 <div className="mb-3 d-flex justify-content-between border-bottom">
                   <p className="text-muted mb-1">Email Address:</p>
-                  <p className="fw-medium">{profileData?.email || "N/A"}</p>
+                  <p className="fw-medium">{profileData?.data?.email || "N/A"}</p>
                 </div>
 
                 <div className="mb-3 d-flex justify-content-between border-bottom">
                   <p className="text-muted mb-1">Phone Number:</p>
-                  <p className="fw-medium">{profileData?.phone || "N/A"}</p>
+                  <p className="fw-medium">{profileData?.data?.phone || "N/A"}</p>
                 </div>
 
                 {/* <div className="mb-3 d-flex justify-content-between border-bottom">
                   <p className="text-muted mb-1">Role:</p>
-                  <p className="fw-medium">{profileData?.role || "N/A"}</p>
+                  <p className="fw-medium">{profileData?.data?.role || "N/A"}</p>
                 </div> */}
 
                 <div className="mb-3 d-flex justify-content-between border-bottom">
                   <p className="text-muted mb-1">Website:</p>
-                  <p className="fw-medium">{profileData?.website || "N/A"}</p>
+                  <p className="fw-medium">{profileData?.data?.website || "N/A"}</p>
                 </div>
 
                 <div className="mb-3 d-flex justify-content-between">
                   <p className="text-muted mb-1">Location:</p>
-                  <p className="fw-medium">{profileData?.location || "N/A"}</p>
+                  <p className="fw-medium">{profileData?.data?.location || "N/A"}</p>
                 </div>
               </div>
             </div>
@@ -181,7 +166,7 @@ export default function MyProfile() {
           <div className="col-md-6 ps-md-4">
             <div className="mb-4">
               <p className="text-muted mb-1">Bio:</p>
-              <p className="mb-3">{profileData?.bio || "No bio available."}</p>
+              <p className="mb-3">{profileData?.data?.bio || "No bio available."}</p>
             </div>
           </div>
         </div>

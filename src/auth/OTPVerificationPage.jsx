@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import roleImage from "/src/assets/images/logo.png";
 import backgroundImage from "/src/assets/images/Background.jpg";
 import { Link } from "react-router-dom";
 import { apiHelper } from "../services/index";
@@ -97,7 +96,7 @@ const OTPVerificationPage = () => {
       const { response, error } = await apiHelper(
         "POST",
         "/web/otp/verify",
-        { Authorization: undefined }, // Remove auth header for public endpoint
+        { Authorization: undefined }, 
         requestBody
       );
 

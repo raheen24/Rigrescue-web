@@ -1,36 +1,29 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import DriversProf from "../assets/images/driverProf.png";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import SearchIcon from "../assets/images/SearchIcon.png";
-import { getServiceBookings } from "../services";
+import { useServiceBookingsQuery } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 const MechanicJobs = () => {
   const [activeTab, setActiveTab] = useState("current");
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      setLoading(true);
-      const status = activeTab === "current" ? "ongoing" : "completed";
-      const result = await getServiceBookings(status, search);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        const allJobs = result.response.data.data || [];
-        const filteredJobs = allJobs.filter(job => job.status === status);
-        setJobs(filteredJobs);
-      }
-      setLoading(false);
-    };
-    fetchJobs();
-  }, [activeTab, search]);
+  const status = activeTab === "current" ? "ongoing" : "completed";
+  const { data, isLoading } = useServiceBookingsQuery(status, search);
+  const jobs = data || [];
+
+  const truncateText = (text, maxWords) => {
+    const words = text.split(' ');
+    if (words.length > maxWords) {
+      return words.slice(0, maxWords).join(' ') + '...';
+    }
+    return text;
+  };
 
   const handleClick = (jobId) => {
     navigate("/shop-owner/mechanic-job-details", { state: { jobId } });
@@ -85,7 +78,7 @@ const MechanicJobs = () => {
         </span>
       </td>
       <td className="text-muted small" style={{ wordBreak: "break-word" }}>
-        {job.description}
+        {truncateText(job.description, 5)}
       </td>
       <td className="text-muted small">
         {new Date(job.created_at).toLocaleDateString()}
@@ -129,7 +122,7 @@ const MechanicJobs = () => {
         </span>
       </td>
       <td className="text-muted small" style={{ wordBreak: "break-word" }}>
-        {job.description}
+        {truncateText(job.description, 5)}
       </td>
       <td className="text-muted small">
         {new Date(job.completed_at).toLocaleDateString()}
@@ -169,8 +162,8 @@ const MechanicJobs = () => {
         className="rounded-4 innerWrapper shadow-sm"
         style={{ background: "#E9E9E9" }}
       >
-        <h5 className="fw-bold colorOrange mb-4">Mechanic Jobs</h5>
-        <div className="searchfield">
+        <h5 className="fw-bold colorOrange mb-3">Mechanic Jobs</h5>
+        <div className="searchfield mb-3">
           <input
             type="search"
             placeholder="Search jobs..."
@@ -240,7 +233,7 @@ const MechanicJobs = () => {
             <table className="table">
               <CurrentOrdersHeader />
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   <tr>
                     <td colSpan="7"><LoadingSpinner /></td>
                   </tr>
@@ -257,7 +250,7 @@ const MechanicJobs = () => {
             <table className="table">
               <PreviousOrdersHeader />
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   <tr>
                     <td colSpan="8"><LoadingSpinner /></td>
                   </tr>

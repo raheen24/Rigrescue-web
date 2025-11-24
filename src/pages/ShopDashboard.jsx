@@ -153,9 +153,20 @@ const ShopDashboard = () => {
                       width: "100%",
                       maxWidth: "120px",
                       height: "180px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    <Doughnut data={doughnutData} options={doughnutOptions} />
+                    {loading ? (
+                      <LoadingSpinner />
+                    ) : totalMechanics === 0 ? (
+                      <div className="text-center">
+                        <p className="text-muted mb-0">No Data</p>
+                      </div>
+                    ) : (
+                      <Doughnut data={doughnutData} options={doughnutOptions} />
+                    )}
                   </div>
                 </div>
 

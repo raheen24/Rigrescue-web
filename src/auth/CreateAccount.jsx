@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import backgroundImage from "/src/assets/images/Background.jpg";
 import { Link } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { apiHelper } from "../services/index";
+import { useSignupMutation } from "../services/apiQueries";
 import { setCookie } from "../utils";
 import { setLogin } from "../redux/userslice";
 import { useForm } from "react-hook-form";
@@ -15,17 +15,16 @@ const CreateAccount = () => {
   const dispatch = useDispatch();
   const { register, handleSubmit } = useForm();
 
-  // Determine device token and role based on route
-  const isShopRoute = location.pathname.includes('shop');
-  const deviceToken = isShopRoute ? "94c8y20y9y0t93854y" : "c94t78n4gfyhh2f92";
+  const isShopRoute = location.pathname.includes("shop");
   const role = isShopRoute ? "shop_owner" : "fleet_manager";
+  const fcmToken = useSelector((state) => state.user.fcmToken);
+  const signupMutation = useSignupMutation();
 
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     const { email, password, confirmPassword } = data;
     if (!email.trim()) {
       toast.error("Please enter email");
@@ -44,49 +43,47 @@ const CreateAccount = () => {
       return;
     }
 
-    setLoading(true);
-
     const requestBody = {
       email,
       password,
       password_confirmation: confirmPassword,
       role,
-      device_token: deviceToken,
+      device_token: fcmToken || "default-device-token",
       terms_accepted: termsAccepted,
     };
 
-    try {
-      const { response, error } = await apiHelper("POST", "/web/register", {}, requestBody);
+    signupMutation.mutate(requestBody, {
+      onSuccess: (data) => {
+        if (data && data.success !== false) {
+          const userData = {
+            userId: data.data.user?.id,
+            email: data.data.user?.email,
+            role: data.data.user?.role,
+            deviceType: data.data.user?.device_type,
+            deviceToken: data.data.user?.device_token,
+          };
 
-      if (response && response.data && response.data.success !== false) {
-        const userData = {
-          userId: response.data.data.user?.id,
-          email: response.data.data.user?.email,
-          role: response.data.data.user?.role,
-          deviceType: response.data.data.user?.device_type,
-          deviceToken: response.data.data.user?.device_token,
-        };
+          setCookie("token", data.data.access_token);
+          setCookie("role", data.data.user?.role);
 
-        setCookie("token", response.data.data.access_token);
-        setCookie("role", response.data.data.user?.role);
+          dispatch(
+            setLogin({
+              user: userData,
+              token: data.data.access_token,
+            })
+          );
 
-        dispatch(setLogin({
-          user: userData,
-          token: response.data.data.access_token,
-        }));
-
-        toast.success(response.message);
-        navigate("/profile-setup");
-      } else {
-        toast.error(response?.data?.message || error || "Registration failed.");
-      }
-    } catch (err) {
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+          toast.success(data.message);
+          navigate("/profile-setup");
+        } else {
+          toast.error(data?.message || "Registration failed.");
+        }
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong. Please try again.");
+      },
+    });
   };
-
 
   return (
     <div
@@ -120,21 +117,25 @@ const CreateAccount = () => {
           style={{ maxWidth: "552px", width: "100%", borderRadius: "20px" }}
         >
           <h5 className="text-center fw-bold mt-4">Create an Account</h5>
-          <h5 className="text-center text-muted my-3">
+          <h5 className="text-center text-gray-500 my-3 text-[18px] sm:text-[16px] md:text-[16px] lg:text-[18px]">
             Already have an account?{" "}
-            <Link to="/auth/sign-in-fleet" className="fw-semibold text-dark">
+            <Link
+              to="/auth/sign-in-fleet"
+              className="text-[16px] sm:text-[16px] md:text-[16px] lg:text-[18px] font-semibold text-dark"
+            >
               Sign in
             </Link>
           </h5>
 
           <form onSubmit={handleSubmit(onSubmit)}>
-            <div className="mb-3 mx-3 mx-md-5">
+            <div className="mb-3">
               <label className="form-label fw-bold">Email Address</label>
               <div className="input-group">
                 <span
                   className="input-group-text text-warning"
                   style={{
-                    backgroundColor: '#F6F2EE'}}
+                    backgroundColor: "#F6F2EE",
+                  }}
                 >
                   <img
                     src="/src/assets/images/mail.png"
@@ -146,8 +147,12 @@ const CreateAccount = () => {
                   type="email"
                   className="form-control"
                   placeholder="abc@email.com"
-                  {...register('email')}
-                  style={{ height: "50px", borderLeft: "none", backgroundColor: '#F6F2EE' }}
+                  {...register("email")}
+                  style={{
+                    height: "50px",
+                    borderLeft: "none",
+                    backgroundColor: "#F6F2EE",
+                  }}
                 />
               </div>
             </div>
@@ -161,20 +166,24 @@ const CreateAccount = () => {
               </Link>
             </div> */}
 
-            <div className="mb-3 mx-3 mx-md-5">
+            <div className="mb-3">
               <label className="form-label fw-bold">Password</label>
               <div className="input-group">
                 <input
                   type={showPassword ? "text" : "password"}
                   className="form-control"
-                  {...register('password')}
-                  style={{ height: "50px", borderRight: "none", backgroundColor: '#F6F2EE' }}
+                  {...register("password")}
+                  style={{
+                    height: "50px",
+                    borderRight: "none",
+                    backgroundColor: "#F6F2EE",
+                  }}
                   placeholder="••••••"
                 />
                 <span
                   className="input-group-text text-warning"
                   style={{
-                    backgroundColor: '#F6F2EE',
+                    backgroundColor: "#F6F2EE",
                     cursor: "pointer",
                   }}
                   onClick={() => setShowPassword(!showPassword)}
@@ -187,20 +196,26 @@ const CreateAccount = () => {
                 </span>{" "}
               </div>
             </div>
-            <div className="mb-3 mx-3 mx-md-5">
-              <label className="form-label fw-bold">Confirmation Password</label>
+            <div className="mb-3">
+              <label className="form-label fw-bold">
+                Confirmation Password
+              </label>
               <div className="input-group">
                 <input
                   type={showConfirmPassword ? "text" : "password"}
                   className="form-control"
-                  {...register('confirmPassword')}
-                  style={{ height: "50px", borderRight: "none", backgroundColor: '#F6F2EE' }}
+                  {...register("confirmPassword")}
+                  style={{
+                    height: "50px",
+                    borderRight: "none",
+                    backgroundColor: "#F6F2EE",
+                  }}
                   placeholder="••••••"
                 />
                 <span
                   className="input-group-text text-warning"
                   style={{
-                    backgroundColor: '#F6F2EE',
+                    backgroundColor: "#F6F2EE",
                     cursor: "pointer",
                   }}
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -213,7 +228,7 @@ const CreateAccount = () => {
                 </span>{" "}
               </div>
             </div>
-            <div className="form-check mb-4 mx-3 mx-md-5">
+            <div className="form-check mb-2">
               <input
                 className="form-check-input"
                 type="checkbox"
@@ -222,24 +237,27 @@ const CreateAccount = () => {
                 onChange={(e) => setTermsAccepted(e.target.checked)}
               />
               <label className="form-check-label" htmlFor="termsAccepted">
-                  I Accept Terms and Conditions
+                I Accept Terms and Conditions
               </label>
             </div>
-            <div className="mx-3 mx-md-5">
+            <div>
               <button
                 type="submit"
-                className="btn text-white py-3 w-100 mb-4"
+                className="cta"
                 style={{ backgroundColor: "#171F4D" }}
-                disabled={loading}
+                disabled={signupMutation.isPending}
               >
-                {loading ? "Signing Up..." : "Sign Up"}
+                {signupMutation.isPending ? "Signing Up..." : "Sign Up"}
               </button>
             </div>
           </form>
 
           <p className="text-center fs-6 text-muted mb-4 mb-0 small">
             By signing in, you agree to our <br />
-            <Link to="/terms-and-conditions" className="fw-semibold fs-6 text-black">
+            <Link
+              to="/terms-and-conditions"
+              className="fw-semibold fs-6 text-black"
+            >
               Terms & Conditions
             </Link>{" "}
             &{" "}

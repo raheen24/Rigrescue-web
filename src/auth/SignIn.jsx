@@ -3,9 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import roleImage from "/src/assets/images/logo.png";
 import backgroundImage from "/src/assets/images/Background.jpg";
 import { Link } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
-import { apiHelper } from "../services/index";
+import { useLoginMutation } from "../services/apiQueries";
 import { setCookie } from "../utils";
 
 import { setLogin } from "../redux/userslice";
@@ -13,17 +13,17 @@ const SignIn = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Determine device token based on route
+  // Determine if shop route
   const isShopRoute = location.pathname.includes('shop');
-  const deviceToken = isShopRoute ? "94c8y20y9y0t93854y" : "c94t78n4gfyhh2f92";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const dispatch = useDispatch();
+  const fcmToken = useSelector((state) => state.user.fcmToken);
+  const loginMutation = useLoginMutation();
 
-  const handleSignin = async () => {
+  const handleSignin = () => {
     console.log("handleSignin called");
     if (!email.trim()) {
       toast.error("Please enter email");
@@ -35,82 +35,71 @@ const SignIn = () => {
       return;
     }
 
-    setLoading(true);
-
     const requestBody = {
       email,
       password,
-      deviceToken,
+      deviceToken: fcmToken || "default-token", // Use FCM token or fallback
     };
 
     console.log("Request body:", requestBody);
 
-    try {
-      console.log("Calling apiHelper...");
-      const { response, error } = await apiHelper(
-        "POST",
-        "/web/login",
-        {},
-        requestBody
-      );
+    loginMutation.mutate(requestBody, {
+      onSuccess: (data) => {
+        console.log("API Response:", data);
+        if (data && data.success !== false) {
+          const userData = {
+            userId: data.data.user?.id,
+            stripeId: data.data.user?.stripe_id,
+            firstName: data.data.user?.first_name,
+            lastName: data.data.user?.last_name,
+            email: data.data.user?.email,
+            phone: data.data.user?.phone,
+            role: data.data.user?.role,
+            avatar: data.data.user.avatar,
+            website: data.data.user.website,
+            bio: data.data.user.bio,
+            deviceType: data.data.user.device_type,
+            location: data.data.user.location,
+            latitude: data.data.user.latitude,
+            longitude: data.data.user.longitude,
+            status: data.data.user.status,
+            isProfileCompleted: data.data.user.is_profile_completed,
+            isApproved: data.data.user.is_approved,
+            isNotified: data.data.user.is_notified,
+            deviceToken: data.data.user.device_token,
+            emailVerifiedAt: data.data.user.email_verified_at,
+            deletedAt: data.data.user.deleted_at,
+            createdAt: data.data.user.created_at,
+            updatedAt: data.data.user.updated_at,
+          };
 
-      console.log("API Response:", response.data);
-      console.log("API Error:", error);
+          setCookie("token", data.data.access_token);
+          setCookie("role", data.data.user?.role);
 
-      if (response && response.data && response.data.success !== false) {
-        const userData = {
-          userId: response.data.data.user?.id,
-          stripeId: response.data.data.user?.stripe_id,
-          firstName: response.data.data.user?.first_name,
-          lastName: response.data.data.user?.last_name,
-          email: response.data.data.user?.email,
-          phone: response.data.data.user?.phone,
-          role: response.data.data.user?.role,
-          avatar: response.data.data.user.avatar,
-          website: response.data.data.user.website,
-          bio: response.data.data.user.bio,
-          deviceType: response.data.data.user.device_type,
-          location: response.data.data.user.location,
-          latitude: response.data.data.user.latitude,
-          longitude: response.data.data.user.longitude,
-          status: response.data.data.user.status,
-          isProfileCompleted: response.data.data.user.is_profile_completed,
-          isApproved: response.data.data.user.is_approved,
-          isNotified: response.data.data.user.is_notified,
-          deviceToken: response.data.data.user.device_token,
-          emailVerifiedAt: response.data.data.user.email_verified_at,
-          deletedAt: response.data.data.user.deleted_at,
-          createdAt: response.data.data.user.created_at,
-          updatedAt: response.data.data.user.updated_at,
-        };
+          dispatch(
+            setLogin({
+              user: userData,
+              token: data.data.access_token,
+            })
+          );
 
-        setCookie("token", response.data.data.access_token);
-        setCookie("role", response.data.data.user?.role);
-
-        dispatch(
-          setLogin({
-            user: userData,
-            token: response.data.data.access_token,
-          })
-        );
-
-        toast.success(response.message);
-        if (response.data.data.user.role === 'fleet_manager') {
-          window.location.href = "/fleet/dashboard";
-        } else if (response.data.data.user.role === 'shop_owner') {
-          window.location.href = "/shop-owner/dashboard";
+          toast.success(data.message);
+          if (data.data.user.role === 'fleet_manager') {
+            window.location.href = "/fleet/dashboard";
+          } else if (data.data.user.role === 'shop_owner') {
+            window.location.href = "/shop-owner/dashboard";
+          } else {
+            window.location.href = "/dashboard";
+          }
         } else {
-          window.location.href = "/dashboard";
+          toast.error(data?.message || "Login failed.");
         }
-      } else {
-        toast.error(response?.data?.message || error || "Login failed.");
-      }
-    } catch (err) {
-      console.error("Catch Error:", err);
-      toast.error("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+      },
+      onError: (error) => {
+        console.error("Mutation Error:", error);
+        toast.error(error.message || "Something went wrong. Please try again.");
+      },
+    });
   };
 
   const handleSubmit = (e) => {
@@ -257,9 +246,9 @@ const SignIn = () => {
                 onClick={handleSubmit}
                 className="btn cta text-white py-3 w-100 fw-bold mb-4"
                 style={{ backgroundColor: "#171F4D" }}
-                disabled={loading}
+                disabled={loginMutation.isPending}
               >
-                {loading ? "Signing In..." : "Sign In"}
+                {loginMutation.isPending ? "Signing In..." : "Sign In"}
               </button>
             </div>
           </form>

@@ -1,45 +1,32 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import DriversProf from "../assets/images/driverProf.png";
 import Ellipse1 from "../assets/images/Ellipse1.png";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { getBudgetRequests, manageBudgetRequest } from "../services";
+import { useBudgetRequestsQuery, useManageBudgetRequestMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
+import { useQueryClient } from '@tanstack/react-query';
 import LoadingSpinner from "../components/LoadingSpinner";
 
 const BudgetRuquests = () => {
   const [activeTab, setActiveTab] = useState("pending");
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchBudgetRequests();
-  }, [activeTab]);
+  const status = activeTab === "pending" ? "pending" : "approve";
+  const { data, isLoading, error } = useBudgetRequestsQuery(status);
+  const manageMutation = useManageBudgetRequestMutation();
 
-  const fetchBudgetRequests = async () => {
-    setLoading(true);
-    setError(null);
-    const status = activeTab === "pending" ? "pending" : "approve";
-    const result = await getBudgetRequests(status);
-    if (result.error) {
-      setError(result.error);
-      toast.error(result.error);
-    } else {
-      setData(result.response.data.data || []);
-    }
-    setLoading(false);
-  };
-
-  const handleManage = async (id, action) => {
-    const result = await manageBudgetRequest({ budget_id: id, action });
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success(`Request ${action}d successfully`);
-      fetchBudgetRequests(); // Refetch data
-    }
+  const handleManage = (id, action) => {
+    manageMutation.mutate({ budget_id: id, action }, {
+      onSuccess: () => {
+        toast.success(`Request ${action}d successfully`);
+        queryClient.invalidateQueries({ queryKey: ['budgetRequests', status] });
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    });
   };
 
   const renderJobs = (requests) =>
@@ -160,13 +147,13 @@ const BudgetRuquests = () => {
         </div>
 
         {/* Loading */}
-        {loading && <LoadingSpinner />}
+        {isLoading && <LoadingSpinner />}
 
         {/* Error */}
-        {error && <div className="text-center text-danger">{error}</div>}
+        {error && <div className="text-center text-danger">{error.message}</div>}
 
         {/* Table Based on Active Tab */}
-        {!loading && !error && activeTab === "pending" && (
+        {!isLoading && !error && activeTab === "pending" && (
           <div className="table-responsive">
             <table className="table">
               <thead>
@@ -178,12 +165,12 @@ const BudgetRuquests = () => {
                   <th>Action</th>
                 </tr>
               </thead>
-              <tbody>{renderJobs(data)}</tbody>
+              <tbody>{renderJobs(data?.data || [])}</tbody>
             </table>
           </div>
         )}
 
-        {!loading && !error && activeTab === "approved" && (
+        {!isLoading && !error && activeTab === "approved" && (
           <div className="table-responsive">
             <table className="table">
               <thead>
@@ -195,7 +182,7 @@ const BudgetRuquests = () => {
                   <th>Request Status</th>
                 </tr>
               </thead>
-              <tbody>{renderJobs2(data)}</tbody>
+              <tbody>{renderJobs2(data?.data || [])}</tbody>
             </table>
           </div>
         )}

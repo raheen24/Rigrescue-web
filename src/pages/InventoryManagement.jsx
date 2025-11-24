@@ -2,41 +2,18 @@ import React, { useState, useEffect } from "react";
 import ProductImage from "../assets/images/driverProf.png"; // Replace with actual product image
 import { useNavigate, useOutletContext } from "react-router-dom";
 import imagesq from "../assets/images/imagesq.png";
-import { getProducts, getProductRequests } from "../services";
+import { useProductsQuery, useProductRequestsQuery } from "../services/apiQueries";
 import LoadingSpinner from "../components/LoadingSpinner";
 const InventoryManagement = () => {
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
-  const [products, setProducts] = useState([]);
-  const [productRequestCount, setProductRequestCount] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      const fetchProducts = async () => {
-        const result = await getProducts();
-        if (result.error) {
-          console.error(result.error);
-        } else {
-          setProducts(result.response.data.data);
-        }
-      };
+  const { data: productsData, isLoading: productsLoading } = useProductsQuery();
+  const { data: productRequestsData, isLoading: requestsLoading } = useProductRequestsQuery();
 
-      const fetchProductRequestsCount = async () => {
-        const result = await getProductRequests();
-        if (result.error) {
-          console.error(result.error);
-        } else {
-          setProductRequestCount(result.response.data.data.length);
-        }
-      };
-
-      await Promise.all([fetchProducts(), fetchProductRequestsCount()]);
-      setLoading(false);
-    };
-    fetchData();
-  }, []);
+  const products = productsData || [];
+  const productRequestCount = productRequestsData?.length || 0;
+  const loading = productsLoading || requestsLoading;
 
   const handleProduct = () => {
     navigate('/shop-owner/product-request')

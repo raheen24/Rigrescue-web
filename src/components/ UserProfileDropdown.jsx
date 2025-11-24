@@ -8,7 +8,7 @@ import LogoutModal from "./LogoutModal";
 import SignoutIcon from "../assets/images/sign-out.png";
 import ChangePass from "../assets/images/change-pass.png";
 import { deleteCookie } from "../utils";
-import { getProfile } from "../services";
+import { useProfileQuery } from "../services/apiQueries";
 
 const UserProfileDropdown = () => {
   const [open, setOpen] = useState(false);
@@ -17,17 +17,7 @@ const UserProfileDropdown = () => {
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
   const role = useSelector((state) => state.user.role);
   const user = useSelector((state) => state.user.user);
-  const [profileData, setProfileData] = useState(null);
-
-  useEffect(() => {
-    const fetchProfile = async () => {
-      const result = await getProfile();
-      if (!result.error) {
-        setProfileData(result.response.data.data);
-      }
-    };
-    fetchProfile();
-  }, []);
+  const { data: profileData } = useProfileQuery();
 
   const handleToggle = () => setOpen(!open);
   const handleLogout = () => {
@@ -37,7 +27,6 @@ const UserProfileDropdown = () => {
     window.location.href = "/";
   };
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -55,10 +44,10 @@ const UserProfileDropdown = () => {
         onClick={handleToggle}
       >
         <div className="headerIcons">
-          <img src={profileData?.avatar || profileImg} alt="Profile" className="headerProfile" />
+          <img src={profileData?.data?.avatar || profileImg} alt="Profile" className="headerProfile" />
         </div>
         <span className="ms-2 fw-semibold text-white  d-md-inline text-capitalize">
-          {profileData?.first_name && profileData?.last_name ? `${profileData.first_name} ${profileData.last_name}` : "John Smith"}
+          {profileData?.data?.first_name && profileData?.data?.last_name ? `${profileData.data.first_name} ${profileData.data.last_name}` : "John Smith"}
         </span>
         <img
           src={arrowDown}
@@ -90,14 +79,14 @@ const UserProfileDropdown = () => {
               style={{ width: "44px", height: "44px", borderRadius:"32px" }}
             >
               <img
-                src={profileData?.avatar || profileImg}
+                src={profileData?.data?.avatar || profileImg}
                 alt="Profile"
                 style={{ width:"100%", height: "100%" , borderRadius:"32px" }}
               />
             </div>
             <div className="ms-3">
-              <p className="mb-0 fw-semibold text-capitalize">{profileData?.first_name && profileData?.last_name ? `${profileData.first_name} ${profileData.last_name}` : "John Smith"}</p>
-              <p className="mb-0">{profileData?.email || "Info@Example.Com"}</p>
+              <p className="mb-0 fw-semibold text-capitalize">{profileData?.data?.first_name && profileData?.data?.last_name ? `${profileData.data.first_name} ${profileData.data.last_name}` : "John Smith"}</p>
+              <p className="mb-0">{profileData?.data?.email || "Info@Example.Com"}</p>
             </div>
           </div>
 

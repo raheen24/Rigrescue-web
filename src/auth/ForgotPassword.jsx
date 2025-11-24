@@ -43,7 +43,7 @@ const ForgotPassword = () => {
       const { response, error } = await apiHelper(
         "POST",
         "/web/forgot-password",
-        { Authorization: undefined }, // Remove auth header for public endpoint
+        { Authorization: undefined }, 
         requestBody
       );
 

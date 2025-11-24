@@ -9,18 +9,18 @@ import MessageIcon from "../assets/images/messageIcon.png";
 import CustomerPic from "../assets/images/customer-pic.png";
 import ProductImg from "../assets/images/product_img.png";
 import DriversProf from "../assets/images/driverProf.png";
-import { getServiceBookingDetails } from "../services";
+import { useServiceBookingDetailsQuery } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function PreviousMechanicJobDetail() {
   const [showModal, setShowModal] = useState(false);
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
   const isSideBarOpen = useOutletContext();
   const location = useLocation();
 
   const navigate = useNavigate();
+  const jobId = location.state?.jobId;
+  const { data: job, isLoading, error } = useServiceBookingDetailsQuery(jobId);
 
   const handleMessageClick = () => {
     navigate("/shop-owner/messages");
@@ -45,22 +45,12 @@ export default function PreviousMechanicJobDetail() {
   };
 
   useEffect(() => {
-    const fetchJobDetails = async () => {
-      const jobId = location.state?.jobId;
-      if (jobId) {
-        const result = await getServiceBookingDetails(jobId);
-        if (result.error) {
-          toast.error(result.error);
-        } else {
-          setJob(result.response.data);
-        }
-      }
-      setLoading(false);
-    };
-    fetchJobDetails();
-  }, [location.state]);
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
 
-  if (loading) {
+  if (isLoading) {
     return <LoadingSpinner />;
   }
 
@@ -109,10 +99,10 @@ export default function PreviousMechanicJobDetail() {
               <div className="text-center">
                 <div className="rounded-circle d-inline-flex align-items-center justify-content-center">
                   <a onClick={handleMecAccClick}>
-                    <img src={job.quotation?.mechanic_avatar || Ellipse} alt="" className="avatar" />
+                    <img src={job.mechanic?.avatar || Ellipse} alt="" className="avatar" />
                   </a>
                 </div>
-                <p>{job.quotation?.mechanic_name || 'N/A'}</p>
+                <p>{job.mechanic?.first_name || 'N/A'} {job.mechanic?.last_name || ''}</p>
               </div>
 
               <h5 className=" pb-2 mb-3">Job Details</h5>
@@ -123,7 +113,7 @@ export default function PreviousMechanicJobDetail() {
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Mechanic Hourly Charges:</span>
-                  <strong>$ {job.quotation?.est_amount || 'N/A'}</strong>
+                  <strong>$ {job.mechanic?.hourly_rate || 'N/A'}</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Total Service Hours:</span>
@@ -131,42 +121,43 @@ export default function PreviousMechanicJobDetail() {
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Service Amount:</span>
-                  <strong>$ {job.total_amount || 'N/A'}</strong>
+                  <strong>$ {job.service_charges || 'N/A'}</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Product Amount:</span>
-                  <strong>$ 0.00</strong>
+                  <strong>$ {job.products_total || '0.00'}</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom align-items-center py-2 ">
                   <strong className="text-muted">Total Amount:</strong>
                   <strong>$ {job.total_amount || 'N/A'}</strong>
                 </div>
               </div>
-              <div className="bg-white reviewBox rounded-4 shadow-sm p-3">
-                <div className="d-flex align-items-center gap-2 mb-2">
-                  <img
-                    src={DriversProf}
-                    alt="Reviewer"
-                    className="rounded-circle border border-orange"
-                    width="50"
-                    height="50"
-                    style={{ objectFit: "cover", borderWidth: "2px" }}
-                  />
-                  <h6 className="fw-bold colorOrange mb-1 text-nowrap">
-                    {job.driver?.first_name} {job.driver?.last_name}
-                  </h6>
-                  <div className="colorOrange">
-                    {"★".repeat(4)}
-                    {"☆".repeat(1)}
+              {job.mechanic?.review && (
+                <div className="bg-white reviewBox rounded-4 shadow-sm p-3">
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <img
+                      src={job.driver?.avatar || DriversProf}
+                      alt="Reviewer"
+                      className="rounded-circle border border-orange"
+                      width="50"
+                      height="50"
+                      style={{ objectFit: "cover", borderWidth: "2px" }}
+                    />
+                    <h6 className="fw-bold colorOrange mb-1 text-nowrap">
+                      {job.driver?.first_name} {job.driver?.last_name}
+                    </h6>
+                    <div className="colorOrange">
+                      {"★".repeat(job.mechanic.review.rating)}
+                      {"☆".repeat(5 - job.mechanic.review.rating)}
+                    </div>
+                  </div>
+                  <div className="align-items-center">
+                    <p className="colorOrange fst-italic small mb-2">
+                      {job.mechanic.review.comment}
+                    </p>
                   </div>
                 </div>
-                <div className="align-items-center">
-                  <p className="colorOrange fst-italic small mb-2">
-                    Lorem ipsum dolor sit amet consectetur adipiscing elit, enim
-                    ac felis natoque posuere ornare dictum molestie mi.
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
           <AllucateBudgetModal
@@ -199,38 +190,32 @@ export default function PreviousMechanicJobDetail() {
               </div>
               <div className="d-flex justify-content-center">
                 <div className="issuesBox d-flex col-md-12 gap-2 my-2">
-                  {/* <div className="col-md-4"> */}
-                  <img src={ProductImg} alt="" />
-                  {/* </div> */}
-                  {/* <div className="col-md-4"> */}
-                  <img src={ProductImg} alt="" />
-                  {/* </div> */}
-                  {/* <div className="col-md-4"> */}
-                  <img src={ProductImg} alt="" />
-                  {/* </div> */}
+                  {job.issue_images?.map((img, index) => (
+                    <img key={index} src={img.image} alt="" />
+                  ))}
                 </div>
               </div>
 
               <h6 className="fw-bold fs-5">Products</h6>
-              {[...Array(1)].map((_, i) => (
+              {job.products?.map((product, i) => (
                 <div
                   key={i}
                   className="mechanicBox d-flex bg-white p-3 rounded-4 mb-3 align-items-center shadow-lg"
                 >
                   <img
-                    src={ProductImg}
+                    src={product.image}
                     alt="product"
                     className="me-3 rounded"
+                    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
                   />
                   <div>
-                    <strong>Lorem Ipsum Product</strong>
+                    <strong>{product.name}</strong>
                     <p>
                       {" "}
-                      <strong className="mb-0 text-muted small">$15.30</strong>
+                      <strong className="mb-0 text-muted small">${product.price}</strong>
                     </p>
                     <p className="mb-0 text-muted small">
-                      Lorem ipsum dolor sit amet adipiscing dignissim, risus
-                      massa quam
+                      {product.description}
                     </p>
                   </div>
                 </div>

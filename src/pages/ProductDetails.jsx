@@ -10,7 +10,7 @@ import EditProd from "../assets/images/EditProd.png";
 import DeleteProd from "../assets/images/deleteprod.png";
 import DeleteProductModal from "../components/DeleteProductModal";
 import DeleteAccountModal from "../components/DeleteAccountModal";
-import { getProductDetails, deleteProduct } from "../services";
+import { useProductDetailsQuery, useDeleteProductMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 
 export default function ProductDetails() {
@@ -19,17 +19,20 @@ export default function ProductDetails() {
   const { id } = useParams();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
-  const [productData, setProductData] = useState(null);
-  const [loading, setLoading] = useState(true);
 
-  const handleDeleteConfirm = async () => {
-    const result = await deleteProduct(id);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("Product deleted successfully.");
-      navigate("/shop-owner/inventory-management");
-    }
+  const { data: productDetails, isLoading } = useProductDetailsQuery(id);
+  const deleteMutation = useDeleteProductMutation();
+
+  const handleDeleteConfirm = () => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("Product deleted successfully.");
+        navigate("/shop-owner/inventory-management");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong.");
+      },
+    });
     setShowDeleteModal(false);
   };
 
@@ -41,27 +44,13 @@ export default function ProductDetails() {
     setShowDeleteAccountModal(false);
   };
 
-  useEffect(() => {
-    const fetchProductDetails = async () => {
-      const result = await getProductDetails(id);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        const data = result.response.data.data;
-        setProductData({
-          title: data.name,
-          price: `$${data.price}`,
-          quantity: data.quantity,
-          description: data.description,
-          images: [data.image], // Single image, but swiper expects array
-        });
-      }
-      setLoading(false);
-    };
-    if (id) {
-      fetchProductDetails();
-    }
-  }, [id]);
+  const productData = productDetails ? {
+    title: productDetails.name,
+    price: `$${productDetails.price}`,
+    quantity: productDetails.quantity,
+    description: productDetails.description,
+    images: [productDetails.image], // Single image, but swiper expects array
+  } : null;
 
   const handleEdit = () => {
     navigate(`/shop-owner/edit-product/${id}`);
@@ -71,7 +60,7 @@ export default function ProductDetails() {
     console.log("Deleting product...");
   };
 
-  if (loading || !productData) {
+  if (isLoading || !productData) {
     return (
       <div
         className={`content_section ${

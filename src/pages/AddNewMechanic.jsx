@@ -6,11 +6,12 @@ import editIcon from "../assets/images/editImg.png";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import CustomButton from "../components/GlobalBtn";
 import { useState } from "react";
-import { createMechanic } from "../services";
+import { useCreateMechanicMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 export default function AddNewMechanic() {
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
+  const createMechanicMutation = useCreateMechanicMutation();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -21,15 +22,12 @@ export default function AddNewMechanic() {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [certificationFile, setCertificationFile] = useState(null);
   const [certificationPreview, setCertificationPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const handleAddMechanic = async () => {
+  const handleAddMechanic = () => {
     if (!firstName || !lastName || !mechanicEmail || !password || !hourlyRate) {
       toast.error("Please fill all required fields");
       return;
     }
-
-    setLoading(true);
 
     const formData = new FormData();
     formData.append("first_name", firstName);
@@ -44,16 +42,15 @@ export default function AddNewMechanic() {
       formData.append("certification", certificationFile);
     }
 
-    const { error, response } = await createMechanic(formData);
-
-    setLoading(false);
-
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success("Mechanic created successfully.");
-      navigate("/shop-owner/my-mechanics");
-    }
+    createMechanicMutation.mutate(formData, {
+      onSuccess: () => {
+        toast.success("Mechanic created successfully.");
+        navigate("/shop-owner/my-mechanics");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong.");
+      },
+    });
   };
 
   return (
@@ -295,7 +292,7 @@ export default function AddNewMechanic() {
                   className="py-3"
                   label="Add Mechanic"
                   onClick={handleAddMechanic}
-                  disabled={loading}
+                  disabled={createMechanicMutation.isPending}
                 />
               </div>
             </div>

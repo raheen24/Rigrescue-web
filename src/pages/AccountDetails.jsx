@@ -16,7 +16,7 @@ import CustomButton from "../components/GlobalBtn";
 import backgroundImage from "/src/assets/images/Background.jpg";
 import { useNavigate } from "react-router-dom";
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
-import { apiHelper } from "../services";
+import { useAddCardMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 
@@ -25,6 +25,7 @@ const AccountDetails = ({ open = true, onClose, modalBtnPress }) => {
   const stripe = useStripe();
   const elements = useElements();
   const token = useSelector(state => state.user.token);
+  const addCardMutation = useAddCardMutation();
   const paymentMethods = [
     { id: 1, icon: <img src={paypalIcon} alt="" /> },
     { id: 2, icon: <img src={GoogleIcon} alt="" /> },
@@ -45,32 +46,36 @@ const AccountDetails = ({ open = true, onClose, modalBtnPress }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (selected === 4) { // Card
       if (!stripe || !elements) {
         return;
       }
       const cardElement = elements.getElement(CardElement);
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
+      stripe.createPaymentMethod({
         type: 'card',
         card: cardElement,
+      }).then(({ error, paymentMethod }) => {
+        if (error) {
+          console.error(error);
+          toast.error("Failed to create payment method");
+          return;
+        }
+        addCardMutation.mutate({ payment_method_id: paymentMethod.id }, {
+          onSuccess: (data) => {
+            toast.success(data.message);
+            modalBtnPress?.({ payment_method_id: paymentMethod.id, type: 'card' });
+            onClose?.() || navigate("/approval-screen");
+          },
+          onError: (error) => {
+            toast.error(error.message || "Something went wrong.");
+          },
+        });
       });
-      if (error) {
-        console.error(error);
-        toast.error("Failed to create payment method");
-        return;
-      }
-      const { error: apiError, response } = await apiHelper("POST", "/web/fleet/card/add", {}, { payment_method_id: paymentMethod.id });
-      if (apiError) {
-        toast.error(apiError);
-      } else {
-        toast.success(response.data.message);
-        modalBtnPress?.({ payment_method_id: paymentMethod.id, type: 'card' });
-      }
     } else {
       modalBtnPress?.(formData);
+      onClose?.() || navigate("/approval-screen");
     }
-    onClose?.() || navigate("/approval-screen");
   };
 
   return (

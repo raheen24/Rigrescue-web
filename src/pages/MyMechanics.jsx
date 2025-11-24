@@ -3,7 +3,7 @@ import DriversProf from "../assets/images/driverProf.png";
 import { Link, useOutletContext } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import SearchIcon from "../assets/images/SearchIcon.png";
-import { getMechanics } from "../services";
+import { useMechanicsQuery } from "../services/apiQueries";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 const MyMechanics = () => {
@@ -11,29 +11,13 @@ const MyMechanics = () => {
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
   const [search, setSearch] = useState("");
-  const [mechanics, setMechanics] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+
+  const status = activeTab === "active" ? "active" : "inactive";
+  const { data: mechanics, isLoading, error } = useMechanicsQuery(status, search);
 
   const handleAddDriver = () => {
     navigate("/shop-owner/add-new-mechanic");
   };
-
-  useEffect(() => {
-    const fetchMechanics = async () => {
-      setLoading(true);
-      setError(null);
-      const status = activeTab === "active" ? "active" : "inactive";
-      const res = await getMechanics(status, search);
-      if (res.error) {
-        setError(res.error);
-      } else {
-        setMechanics(res.response.data.data);
-      }
-      setLoading(false);
-    };
-    fetchMechanics();
-  }, [activeTab, search]);
 
   const renderDrivers = (mechanicList) => (
     <div className="row g-4">
@@ -123,9 +107,9 @@ const MyMechanics = () => {
           </div>
 
         {/* Conditional mechanic rendering based on tab */}
-        {loading && <LoadingSpinner />}
-        {error && <p className="text-danger">{error}</p>}
-        {!loading && !error && renderDrivers(mechanics)}
+        {isLoading && <LoadingSpinner />}
+        {error && <p className="text-danger">{error.message}</p>}
+        {!isLoading && !error && renderDrivers(mechanics || [])}
       </div>
     </div>
   );

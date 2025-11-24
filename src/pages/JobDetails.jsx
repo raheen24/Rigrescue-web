@@ -4,34 +4,24 @@ import locationdot from "../assets/images/locationdot.png";
 import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import chatIcon from "../assets/images/chaticon.png";
-import { getServiceBookingDetails } from "../services";
+import { useServiceBookingDetailsQuery } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/LoadingSpinner";
 
 export default function JobDetails() {
-   const [showModal, setShowModal] = useState(false);
-   const [jobDetails, setJobDetails] = useState(null);
-   const [loading, setLoading] = useState(false);
+    const [showModal, setShowModal] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
   const jobId = location.state?.jobId;
 
+  const { data: jobDetails, isLoading, error } = useServiceBookingDetailsQuery(jobId);
+
   useEffect(() => {
-    if (jobId) {
-      const fetchDetails = async () => {
-        setLoading(true);
-        const result = await getServiceBookingDetails(jobId);
-        if (result.error) {
-          toast.error(result.error);
-        } else {
-          setJobDetails(result.response.data.data);
-        }
-        setLoading(false);
-      };
-      fetchDetails();
+    if (error) {
+      toast.error(error.message);
     }
-  }, [jobId]);
+  }, [error]);
 
   const handleMapClick = () => {
     navigate("/fleet/track-driver", { state: { driverId: jobDetails.driver.id } });
@@ -49,7 +39,7 @@ export default function JobDetails() {
     setShowModal2(false);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className={`content_section ${

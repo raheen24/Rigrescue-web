@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import roleImage from "/src/assets/images/logo.png";
 import backgroundImage from "/src/assets/images/Background.jpg";
 import { Link } from "react-router-dom";
 import { apiHelper } from "../services/index";

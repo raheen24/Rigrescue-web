@@ -1,31 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import DriversProf from "../assets/images/driverProf.png";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { getServiceBookings } from "../services";
+import { useServiceBookingsQuery } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import LoadingSpinner from "../components/LoadingSpinner";
 
+const truncateText = (text, maxWords) => {
+  const words = text.split(' ');
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(' ') + '...';
+};
+
 const JobsPage = () => {
   const [activeTab, setActiveTab] = useState("ongoing");
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      setLoading(true);
-      const status = activeTab === "ongoing" ? "ongoing" : "completed";
-      const result = await getServiceBookings(status);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        setJobs(result.response.data.data || []);
-      }
-      setLoading(false);
-    };
-    fetchJobs();
-  }, [activeTab]);
+  const status = activeTab === "ongoing" ? "ongoing" : "completed";
+  const { data, isLoading } = useServiceBookingsQuery(status, '');
 
   const handleClick = (jobId) => {
     navigate("/fleet/jobs-details", { state: { jobId } });
@@ -54,7 +46,7 @@ const JobsPage = () => {
           className="issue text-muted small text-start"
           style={{ whiteSpace: "normal", wordBreak: "break-word" }}
         >
-          {job.description}
+          {truncateText(job.description, 5)}
         </td>
         {activeTab === "previous" && (
           <td className="text-dark">
@@ -136,12 +128,12 @@ const JobsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   <tr>
                     <td colSpan="6"><LoadingSpinner /></td>
                   </tr>
                 ) : (
-                  renderJobs(jobs)
+                  renderJobs(data?.data || [])
                 )}
               </tbody>
             </table>
@@ -163,12 +155,12 @@ const JobsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {isLoading ? (
                   <tr>
                     <td colSpan="7"><LoadingSpinner /></td>
                   </tr>
                 ) : (
-                  renderJobs(jobs)
+                  renderJobs(data?.data || [])
                 )}
               </tbody>
             </table>

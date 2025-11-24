@@ -5,13 +5,17 @@ import GoogleIcon from "../assets/images/googleIcon.png";
 import paypalIcon from "../assets/images/paypalIcon.png";
 import { useModal } from "./ModalContext";
 import { apiHelper } from "../services";
+import { useNotificationsQuery } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
+import LoadingSpinner from "./LoadingSpinner";
 
 const NotificationModal = ({ open, onClose, modalBtnPress }) => {
   const modalRef = useRef();
   const { setIsModalOpen } = useModal();
   const token = useSelector(state => state.user.token);
+  const { data, isLoading, error } = useNotificationsQuery({ enabled: open });
+  const notifications = data?.data || data || [];
 
   const paymentMethods = [
     { id: 1, icon: <img src={paypalIcon} alt="" /> },
@@ -104,25 +108,36 @@ const NotificationModal = ({ open, onClose, modalBtnPress }) => {
             className="modal-body"
             style={{ maxHeight: "500px", overflowY: "auto" }}
           >
-            {[
-              "Edit your information in a swipe Sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim.",
-              "It is a long established fact that a reader will be distracted by the readable.",
-              "There are many variations of passages of Lorem Ipsum available, but the majority have suffered.",
-              "Edit your information in a swipe Sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim.",
-            ].map((text, index) => (
-              <div
-                className={`border-bottom ${index !== 0 ? "my-4" : ""}`}
-                key={index}
-              >
-                <p className="text-secondary mb-0">
-                  <span className="text-black">{text.split(" ")[0]} </span>
-                  {text.split(" ").slice(1).join(" ")}
-                </p>
-                <p className="my-2">
-                  <span className="text-muted small">12 May, 2025</span>
-                </p>
-              </div>
-            ))}
+            {isLoading ? (
+              <LoadingSpinner />
+            ) : error ? (
+              <p className="text-center text-danger">Error loading notifications</p>
+            ) : !notifications || notifications.length === 0 ? (
+              <p className="text-center text-muted">No notifications</p>
+            ) : (
+              notifications.map((notification, index) => (
+                <div
+                  className={`border-bottom ${index !== 0 ? "my-4" : ""}`}
+                  key={notification.id}
+                >
+                  <p className="text-secondary mb-0">
+                    <span className="text-black fw-bold">{notification.title}: </span>
+                    {notification.description}
+                  </p>
+                  <p className="my-2">
+                    <span className="text-muted small">
+                      {new Date(notification.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </span>
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

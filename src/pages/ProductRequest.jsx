@@ -3,7 +3,7 @@ import DriversProf from "../assets/images/driverProf.png";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import FilterIcon from "../assets/images/filterIcon.png";
 import FilterModal from "../components/FilterModal";
-import { getProductRequests } from "../services";
+import { useProductRequestsQuery } from "../services/apiQueries";
 import { toast } from "react-toastify";
 
 const ProductRequest = () => {
@@ -11,24 +11,14 @@ const ProductRequest = () => {
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
-  const [productRequests, setProductRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+
+  const { data: productRequests, isLoading, error } = useProductRequestsQuery();
 
   useEffect(() => {
-    const fetchProductRequests = async () => {
-      setLoading(true);
-      const result = await getProductRequests();
-      if (result.error) {
-        setError(result.error);
-        toast.error(result.error);
-      } else {
-        setProductRequests(result.response.data.data);
-      }
-      setLoading(false);
-    };
-    fetchProductRequests();
-  }, []);
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
 
   const handleClick = (request) => {
     navigate("/shop-owner/add-product", { state: { fromRequest: true, request } });
@@ -102,7 +92,7 @@ const ProductRequest = () => {
       >
         <h5 className="fw-bold colorOrange mb-4">Product Request</h5>
         <div className="table-responsive">
-          {loading ? (
+          {isLoading ? (
             <div className="text-center py-4">
               <div className="spinner-border text-primary" role="status">
                 <span className="visually-hidden">Loading...</span>
@@ -110,13 +100,13 @@ const ProductRequest = () => {
             </div>
           ) : error ? (
             <div className="text-center py-4 text-danger">
-              Error loading product requests: {error}
+              Error loading product requests: {error.message}
             </div>
           ) : (
             <table className="table">
               <CurrentOrdersHeader />
               <tbody>
-                {productRequests.length > 0 ? (
+                {productRequests && productRequests.length > 0 ? (
                   productRequests.map((request, index) =>
                     renderCurrentOrderRow(request, index)
                   )

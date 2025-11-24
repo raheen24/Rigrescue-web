@@ -6,12 +6,13 @@ import editIcon from "../assets/images/editImg.png";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import CustomButton from "../components/GlobalBtn";
 import { useState } from "react";
-import { apiHelper } from "../services";
+import { useCreateDriverMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 
 export default function DriverDetails() {
     const navigate = useNavigate();
     const isSideBarOpen = useOutletContext();
+    const createDriverMutation = useCreateDriverMutation();
 
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
@@ -22,15 +23,12 @@ export default function DriverDetails() {
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [licenseFile, setLicenseFile] = useState(null);
     const [licensePreview, setLicensePreview] = useState(null);
-    const [loading, setLoading] = useState(false);
 
-  const handleAddDriver = async () => {
+  const handleAddDriver = () => {
     if (!firstName || !lastName || !driverEmail || !password || !vehiclePlate) {
       toast.error("Please fill all required fields");
       return;
     }
-
-    setLoading(true);
 
     const formData = new FormData();
     formData.append("name", `${firstName} ${lastName}`.trim());
@@ -46,16 +44,15 @@ export default function DriverDetails() {
       formData.append("driving_license", licenseFile);
     }
 
-    const { error, response } = await apiHelper("POST", "/web/fleet/driver/create", {}, formData);
-
-    setLoading(false);
-
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success("Driver created successfully.");
-      navigate("/fleet/my-drivers");
-    }
+    createDriverMutation.mutate(formData, {
+      onSuccess: () => {
+        toast.success("Driver created successfully.");
+        navigate("/fleet/my-drivers");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong.");
+      },
+    });
   };
 
   return (
@@ -277,7 +274,7 @@ export default function DriverDetails() {
                   className="py-3"
                   label="Add Driver"
                   onClick={handleAddDriver}
-                  disabled={loading}
+                  disabled={createDriverMutation.isPending}
                   />
               </div>
             </div>

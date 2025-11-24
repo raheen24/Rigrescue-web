@@ -4,8 +4,9 @@ import profileImage from "../assets/images/profile-image.png";
 import CustomTextField from "../components/CustomTextField";
 import UploadIcon from "../assets/images/uploadIcon.png";
 import { useState, useEffect, useRef } from "react";
-import { getProfile, updateProfile } from "../services";
+import { useProfileQuery, useUpdateProfileMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
+import { useSelector } from "react-redux";
 import PlacesAutocomplete, {
   geocodeByAddress,
   getLatLng,
@@ -16,6 +17,7 @@ export default function EditMyProfile() {
   const navigate = useNavigate();
   const isSideBarOpen = useOutletContext();
   const fileInputRef = useRef(null);
+  const role = useSelector((state) => state.user.role);
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -28,36 +30,31 @@ export default function EditMyProfile() {
     bio: "",
     avatar: null,
   });
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(profileImage);
 
+  const { data: profileData, isLoading } = useProfileQuery();
+  const updateMutation = useUpdateProfileMutation();
+
   useEffect(() => {
-    const fetchProfile = async () => {
-      const result = await getProfile();
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        const data = result.response.data.data;
-        setFormData({
-          firstName: data.first_name || "",
-          lastName: data.last_name || "",
-          phone: data.phone || "",
-          location: data.location || "",
-          latitude: data.latitude || "",
-          longitude: data.longitude || "",
-          website: data.website || "",
-          bio: data.bio || "",
-          avatar: null,
-        });
-        if (data.avatar) {
-          setAvatarPreview(data.avatar);
-        }
+    if (profileData?.data) {
+      const data = profileData.data;
+      setFormData({
+        firstName: data.first_name || "",
+        lastName: data.last_name || "",
+        phone: data.phone || "",
+        location: data.location || "",
+        latitude: data.latitude || "",
+        longitude: data.longitude || "",
+        website: data.website || "",
+        bio: data.bio || "",
+        avatar: null,
+      });
+      if (data.avatar) {
+        setAvatarPreview(data.avatar);
       }
-      setLoading(false);
-    };
-    fetchProfile();
-  }, []);
+    }
+  }, [profileData]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -73,7 +70,7 @@ export default function EditMyProfile() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     setSaving(true);
     const data = new FormData();
     data.append("first_name", formData.firstName);
@@ -88,22 +85,26 @@ export default function EditMyProfile() {
       data.append("avatar", formData.avatar);
     }
 
-    const result = await updateProfile(data);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      const profilePath = role === "shop_owner" ? "/shop-owner/my-profile" : "/fleet/my-profile";
-      toast.success("Profile updated successfully");
-      navigate(profilePath);
-    }
-    setSaving(false);
+    updateMutation.mutate(data, {
+      onSuccess: () => {
+        const profilePath = role === "shop_owner" ? "/shop-owner/my-profile" : "/fleet/my-profile";
+        toast.success("Profile updated successfully");
+        navigate(profilePath);
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+      onSettled: () => {
+        setSaving(false);
+      },
+    });
   };
 
   const handleClick = () => {
     const profilePath = role === "shop_owner" ? "/shop-owner/my-profile" : "/fleet/my-profile";
     navigate(profilePath);
   };
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className={`content_section ${

@@ -7,30 +7,28 @@ import CustomTextField from "../components/CustomTextField";
 import upload from "../assets/images/upload.png";
 import editIcon from "../assets/images/editImg.png";
 import closeImg from "../assets/images/closeImg.png";
-import { apiHelper } from "../services";
+import { useCreateMechanicMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 import { useForm } from "react-hook-form";
 const AddMechanic = ({ open = true }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const { register, handleSubmit } = useForm();
+  const createMechanicMutation = useCreateMechanicMutation();
   const [licenseImages, setLicenseImages] = useState([]);
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   const handleNext = () => {
     navigate("/account-details");
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     const { driverName, driverEmail, password, vin } = data;
     if (!driverName || !driverEmail || !password || !vin) {
       toast.error("Please fill all required fields");
       return;
     }
-
-    setLoading(true);
 
     const [first_name, ...rest] = driverName.split(" ");
     const last_name = rest.join(" ");
@@ -48,21 +46,15 @@ const AddMechanic = ({ open = true }) => {
       formData.append("certificate", licenseImages[0].file); // Take first certificate
     }
 
-    const { error, response } = await apiHelper(
-      "POST",
-      "/web/shop/mechanic/create",
-      {},
-      formData
-    );
-
-    setLoading(false);
-
-    if (error) {
-      toast.error(error);
-    } else {
-      toast.success("Mechanic created successfully.");
-      navigate("/shop-owner/my-mechanics");
-    }
+    createMechanicMutation.mutate(formData, {
+      onSuccess: () => {
+        toast.success("Mechanic created successfully.");
+        navigate("/shop-owner/my-mechanics");
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong.");
+      },
+    });
   };
 
   const handleFileChange = (event) => {
@@ -173,8 +165,7 @@ const AddMechanic = ({ open = true }) => {
                 <CustomTextField
                   label="Mechanic Name"
                   className="w-100"
-                  value={driverName}
-                  onChange={(e) => setDriverName(e.target.value)}
+                  {...register("driverName")}
                   placeholder="Mechanic Name"
                 />
               </div>
@@ -185,8 +176,7 @@ const AddMechanic = ({ open = true }) => {
                     <CustomTextField
                       label="Mechanic Email"
                       className="w-100"
-                      value={driverEmail}
-                      onChange={(e) => setDriverEmail(e.target.value)}
+                      {...register("driverEmail")}
                       placeholder="Lorem ipsum dolor sit"
                     />
                   </div>
@@ -194,8 +184,7 @@ const AddMechanic = ({ open = true }) => {
                     <CustomTextField
                       label="Account Password"
                       className="w-100"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      {...register("password")}
                       placeholder="Lorem ipsum"
                     />
                   </div>
@@ -207,8 +196,7 @@ const AddMechanic = ({ open = true }) => {
                     <CustomTextField
                       label="Hourly Rate"
                       className="w-100"
-                      value={vin}
-                      onChange={(e) => setVin(e.target.value)}
+                      {...register("vin")}
                       placeholder="123456789"
                     />
                   </div>
@@ -282,8 +270,8 @@ const AddMechanic = ({ open = true }) => {
                   // icon="bi-gear"
                   className="py-3"
                   label="Add"
-                  onClick={handleAddDriver}
-                  disabled={loading}
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={createMechanicMutation.isPending}
                 />
               </div>
             </div>

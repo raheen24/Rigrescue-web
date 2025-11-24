@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
 import CustomTextField from "../components/CustomTextField";
 import CustomButton from "../components/GlobalBtn";
 import { BiImageAlt } from "react-icons/bi";
-import { addProduct } from "../services";
+import { useAddProductMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 
 export default function AddProduct() {
@@ -11,6 +11,7 @@ export default function AddProduct() {
   const isSideBarOpen = useOutletContext();
   const location = useLocation();
   const fileInputRef = useRef(null);
+  const addProductMutation = useAddProductMutation();
 
   const [productData, setProductData] = useState({
     title: "",
@@ -57,7 +58,7 @@ export default function AddProduct() {
     fileInputRef.current.click();
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const formData = new FormData();
     formData.append("name", productData.title);
     formData.append("description", productData.description);
@@ -67,13 +68,15 @@ export default function AddProduct() {
       formData.append("image", productData.image);
     }
 
-    const result = await addProduct(formData);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("Product added successfully.");
-      navigate('/shop-owner/inventory-management');
-    }
+    addProductMutation.mutate(formData, {
+      onSuccess: () => {
+        toast.success("Product added successfully.");
+        navigate('/shop-owner/inventory-management');
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong.");
+      },
+    });
   };
 
   return (
@@ -179,6 +182,7 @@ export default function AddProduct() {
                   label="Add Product"
                   // className="py-3"
                   onClick={handleSubmit}
+                  disabled={addProductMutation.isPending}
                 />
               </div>
             </div>

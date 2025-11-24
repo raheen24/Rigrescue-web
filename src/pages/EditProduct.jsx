@@ -4,7 +4,7 @@ import CustomTextField from "../components/CustomTextField";
 import CustomButton from "../components/GlobalBtn";
 import { BiImageAlt } from "react-icons/bi";
 import { IoCloseCircle } from "react-icons/io5";
-import { getProductDetails, updateProduct } from "../services";
+import { useProductDetailsQuery, useUpdateProductMutation } from "../services/apiQueries";
 import { toast } from "react-toastify";
 export default function EditProduct() {
   const navigate = useNavigate();
@@ -12,8 +12,10 @@ export default function EditProduct() {
   const { id } = useParams();
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef(null);
+
+  const { data: productDetails, isLoading } = useProductDetailsQuery(id);
+  const updateMutation = useUpdateProductMutation();
 
   // Handle clicking on the upload box
   const handleUploadClick = () => {
@@ -34,28 +36,18 @@ export default function EditProduct() {
     }
   };
 
-  // Fetch product details
+  // Set product data when fetched
   useEffect(() => {
-    const fetchProduct = async () => {
-      const result = await getProductDetails(id);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        const data = result.response.data.data;
-        setProductData({
-          title: data.name,
-          price: data.price,
-          quantity: data.quantity.toString(),
-          description: data.description,
-        });
-        setPreviewUrl(data.image);
-      }
-      setLoading(false);
-    };
-    if (id) {
-      fetchProduct();
+    if (productDetails) {
+      setProductData({
+        title: productDetails.name,
+        price: productDetails.price,
+        quantity: productDetails.quantity.toString(),
+        description: productDetails.description,
+      });
+      setPreviewUrl(productDetails.image);
     }
-  }, [id]);
+  }, [productDetails]);
 
   // Cleanup preview URL when component unmounts or file changes
   useEffect(() => {
@@ -79,7 +71,7 @@ export default function EditProduct() {
       [e.target.name]: e.target.value,
     });
   };
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const formData = new FormData();
     formData.append("product_id", id);
     formData.append("name", productData.title);
@@ -90,13 +82,15 @@ export default function EditProduct() {
       formData.append("image", selectedFile);
     }
 
-    const result = await updateProduct(formData);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("Product updated successfully.");
-      navigate(`/shop-owner/inventory-management`);
-    }
+    updateMutation.mutate(formData, {
+      onSuccess: () => {
+        toast.success("Product updated successfully.");
+        navigate(`/shop-owner/inventory-management`);
+      },
+      onError: (error) => {
+        toast.error(error.message || "Something went wrong.");
+      },
+    });
   };
 
   const handleRemoveFile = () => {

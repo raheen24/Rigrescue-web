@@ -1,5 +1,5 @@
 import axios from "axios";
-import { store} from "../redux/store";
+import { store } from "../redux/store";
 import { setLogout } from "../redux/userslice";
 import { toast } from "react-toastify";
 import { getCookie, deleteCookie } from "../utils";
@@ -51,69 +51,6 @@ instance.interceptors.response.use(
   }
 );
 
-export const getProfile = async () => {
-  return await apiHelper("GET", "/web/profile");
-};
-
-export const updateProfile = async (data) => {
-  return await apiHelper("POST", "/web/profile/update", {}, data);
-};
-
-export const deleteProfile = async () => {
-  return await apiHelper("DELETE", "/web/profile/delete");
-};
-
-export const getBudgetRequests = async (status) => {
-  return await apiHelper("GET", `/web/fleet/budget-requests?status=${status}`);
-};
-
-export const manageBudgetRequest = async (data) => {
-  return await apiHelper("POST", "/web/fleet/budget-request/manage", {}, data);
-};
-
-export const getServiceBookings = async (status, search = "") => {
-  const params = new URLSearchParams({ status });
-  if (search) params.append('search', search);
-  return await apiHelper("GET", `/web/service-bookings?${params.toString()}`);
-};
-
-export const getServiceBookingDetails = async (id) => {
-  return await apiHelper("GET", `/web/service-booking/${id}`);
-};
-
-export const getMechanics = async (status, search = "") => {
-  const params = new URLSearchParams({ status });
-  if (search) params.append('search', search);
-  return await apiHelper("GET", `/web/shop/mechanics?${params.toString()}`);
-};
-
-export const createMechanic = async (data) => {
-  return await apiHelper("POST", "/web/shop/mechanic/create", {}, data);
-};
-
-export const getProducts = async () => {
-  return await apiHelper("GET", "/web/shop/products");
-};
-
-export const addProduct = async (data) => {
-  return await apiHelper("POST", "/web/shop/product/store", {}, data);
-};
-
-export const getProductDetails = async (id) => {
-  return await apiHelper("GET", `/web/shop/product/${id}`);
-};
-
-export const updateProduct = async (data) => {
-  return await apiHelper("POST", "/web/shop/product/update", {}, data);
-};
-
-export const deleteProduct = async (id) => {
-  return await apiHelper("DELETE", `/web/shop/product/delete?product_id=${id}`);
-};
-
-export const getProductRequests = async () => {
-  return await apiHelper("GET", "/web/shop/product/requests");
-};
 
 export const apiHelper = async (
   method,
