@@ -86,13 +86,14 @@ const MyMechanics = () => {
               Inactive Mechanic
             </h5>
           </div>
-          <div className="justify-content-center d-flex ">
+          <div className="justify-content-center d-flex gap-3">
             <button
               className="btn backgroundColorGb text-white btn-sm px-4 "
               onClick={handleAddDriver}
             >
               Add Mechanic
             </button>
+          
           </div>
         </div>
           <div className="searchfield mb-3">
@@ -106,7 +107,6 @@ const MyMechanics = () => {
             <img src={SearchIcon} alt="Search" className="w-5 h-5" />
           </div>
 
-        {/* Conditional mechanic rendering based on tab */}
         {isLoading && <LoadingSpinner />}
         {error && <p className="text-danger">{error.message}</p>}
         {!isLoading && !error && renderDrivers(mechanics || [])}

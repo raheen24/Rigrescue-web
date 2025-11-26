@@ -47,7 +47,7 @@ export default function MechanicAccountPage() {
   const [showModal2, setShowModal2] = useState(false);
 
   const handleNavigate = () => {
-    navigate("/shop-owner/messages");
+    navigate("/shop-owner/mechanic-messages", { state: { mechanicId: id, mechanicData: mechanicData } });
   };
   const handleShow2 = () => setShowModal2(true);
   const handleHide2 = () => setShowModal2(false);
@@ -168,7 +168,7 @@ export default function MechanicAccountPage() {
                   <div
                     className="rounded shadow-lg bg-white w-fit p-2 d-flex justify-content-center align-items-center"
                     style={{ cursor: "pointer" }}
-                    onClick={() => navigate("/shop-owner/ratings-and-reviews")}
+                    onClick={() => navigate(`/shop-owner/ratings-and-reviews/${id}`)}
                   >
                     <img
                       src={starIcon}

@@ -1,4 +1,5 @@
 import Ellipse from "../assets/images/Ellipse1.png";
+import Group from "../assets/images/Group.png";
 import picturePdf from "../assets/images/picture_as_pdf.png";
 import CustomTextField from "../components/CustomTextField";
 import deleteIcon from "../assets/images/delete.png";
@@ -136,10 +137,11 @@ export default function EditMechanicsAccount() {
                   // style={{ width: "180px", height: "180px" }}
                 >
                   <img
-                    src={mechanicData?.avatar || Ellipse}
+                    src={mechanicData?.avatar || Group}
                     alt="Profile"
                     className="rounded-circle avatar"
                     style={{ objectFit: "cover" }}
+                    onError={(e) => { e.target.src = Group; }}
                   />
 
                   {/* Edit Icon */}

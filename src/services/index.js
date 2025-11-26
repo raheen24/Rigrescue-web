@@ -14,7 +14,7 @@ const instance = axios.create({
 instance.interceptors.request.use(
   (config) => {
     const token = store.getState().user.token || getCookie("token");
-    console.log("Token in interceptor:", token, getCookie("token") );
+    console.log("Token in interceptor:", token);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -35,11 +35,10 @@ instance.interceptors.response.use(
     console.error("API Error:", message);
     if (typeof message === "string") {
       if (
-          message.includes("Unauthorized") ||
-          message.includes("Invalid session token") ||
-          message.includes("Unauthenticated")
-          
-        ) {
+        message.includes("Unauthorized") ||
+        message.includes("Invalid session token") ||
+        message.includes("Unauthenticated")
+      ) {
         store.dispatch(setLogout());
         deleteCookie("token");
         window.location.href = "/";
@@ -50,7 +49,6 @@ instance.interceptors.response.use(
     return Promise.reject(message || "Something went wrong. Please try again.");
   }
 );
-
 
 export const apiHelper = async (
   method,
@@ -78,13 +76,15 @@ export const apiHelper = async (
       response,
     };
   } catch (error) {
+    console.log("API Error details:", error.response?.data || error);
     return {
       error:
         typeof error === "string"
           ? error
-          : error?.message || "Something went wrong.",
+          : error?.response?.data?.message ||
+            error?.message ||
+            "Something went wrong.",
       response: null,
     };
   }
 };
-

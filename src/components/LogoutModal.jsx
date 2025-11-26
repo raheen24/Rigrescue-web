@@ -66,9 +66,9 @@ const LogoutModal = ({ open, onClose, onConfirm }) => {
     <div className="modal d-block bg-overlay-all" tabIndex="-1">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content rounded-4 text-center">
-          <div className="position-relative my-4 rounded-top-4">
-            <img src={LogoutIcon} alt="" />
-            <h4 className="modal-title text-center text-black my-2">
+          <div className="position-relative mt-4 rounded-top-4">
+            <img src={LogoutIcon} alt="" className="successImg"/>
+            <h4 className="modal-title text-center text-black">
             Log out
             </h4>
           </div>

@@ -46,7 +46,7 @@ export default function DriverDetails() {
   const [showModal2, setShowModal2] = useState(false);
 
   const handleNavigate = () => {
-    navigate("/fleet/messages");
+    navigate("/fleet/driver-messages", { state: { driverId: id, driverData: driverData } });
   };
   const handleShow2 = () => setShowModal2(true);
   const handleHide2 = () => setShowModal2(false);

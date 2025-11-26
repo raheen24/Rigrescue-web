@@ -22,7 +22,7 @@ const DeleteAccountModal = ({ open, onClose, onConfirm }) => {
     <div className="modal d-block bg-overlay-all" tabIndex="-1">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content rounded-4 text-center">
-          <div className="position-relative my-2 rounded-top-4">
+          <div className="position-relative mt-2 rounded-top-4">
             <img src={deleteIcon} alt="" className="successImg" />
             <h4 className="modal-title text-center text-black m-2">
               Delete Account

@@ -4,63 +4,87 @@ import locationdot from "../assets/images/locationdot.png";
 import CustomTextField from "../components/CustomTextField";
 import deleteIcon from "../assets/images/deleteIcon.png";
 import editIcon from "../assets/images/editImg.png";
-import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import CustomButton from "../components/GlobalBtn";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { useMechanicsQuery } from "../services/apiQueries";
+import LoadingSpinner from "../components/LoadingSpinner";
+import { useState } from "react";
 export default function TrackMechanic() {
     const navigate = useNavigate();
-    const location = useLocation();
-    const mechanic = location.state?.mechanic;
+    const isSideBarOpen = useOutletContext();
+    const { data: mechanics, isLoading, error } = useMechanicsQuery("active");
+    const center = {
+      lat: 40.730610,
+      lng: -73.876242,
+    };
+
     const handleMapClick = () => {
       navigate(-1);
     };
-    const isSideBarOpen = useOutletContext()
 
-  return (
-    <div className={`content_section ${isSideBarOpen ? "" : "content_section_close"} p-4 home_page`}
-    style={{ minHeight: "100vh" }}
-  >
-      <div
-        className="p-4 rounded-3 shadow-sm"
-        style={{ backgroundColor: "#E9E9E9" }} onClick={handleMapClick}
+    const handleMarkerClick = (mechanic) => {
+      const url = `https://www.google.com/maps/dir/?api=1&destination=${mechanic.latitude},${mechanic.longitude}`;
+      window.open(url, "_blank");
+    };
+
+    const mapContainerStyle = {
+      height: "800px",
+      width: "100%",
+    };
+
+    return (
+      <div className={`content_section ${isSideBarOpen ? "" : "content_section_close"} home_page`}
+        style={{ minHeight: "100vh" }}
       >
-          <div className="col-12 mt-4">
-            <h5 className="colorOrange">Track Mechanic</h5>
-            {mechanic && mechanic.latitude && mechanic.longitude ? (
+        <div
+          className="innerWrapper rounded-3 shadow-sm"
+          style={{ backgroundColor: "#E9E9E9" }}
+        >
+          <div className="col-12">
+            <h5 className="colorOrange mb-3">Track Mechanics</h5>
+            {isLoading ? (
+              <LoadingSpinner />
+            ) : error ? (
+              <div className="d-flex justify-content-center align-items-center" style={{ height: "800px", backgroundColor: "#f8f9fa" }}>
+                <p className="mb-0 text-danger">{error.message}</p>
+              </div>
+            ) : mechanics && mechanics.length > 0 ? (
               <div
                 className="rounded-4 overflow-hidden border-orange position-relative"
-                style={{ height: "800px", border: "2px solid" }}
+                style={{ height: "500px", border: "2px solid" }}
               >
-                <iframe
-                  src={`https://maps.google.com/maps?q=${mechanic.latitude},${mechanic.longitude}&output=embed`}
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  allowFullScreen=""
-                  aria-hidden="false"
-                  tabIndex="0"
-                  title="Map"
-                ></iframe>
-                <img
-                  src={locationdot}
-                  alt="Location Marker"
-                  className="position-absolute"
-                  style={{
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '30px',
-                    height: '30px',
-                    pointerEvents: 'none'
-                  }}
-                />
+                <GoogleMap
+                  mapContainerStyle={mapContainerStyle}
+                  center={center}
+                  zoom={10}
+                >
+                  {mechanics.map((mechanic) => (
+                    mechanic.latitude && mechanic.longitude ? (
+                      <Marker
+                        key={mechanic.id}
+                        position={{
+                          lat: parseFloat(mechanic.latitude),
+                          lng: parseFloat(mechanic.longitude),
+                        }}
+                        icon={{
+                          url: locationdot,
+                          scaledSize: new window.google.maps.Size(30, 30),
+                        }}
+                        title={`${mechanic.first_name} ${mechanic.last_name}`}
+                        onClick={() => handleMarkerClick(mechanic)}
+                      />
+                    ) : null
+                  ))}
+                </GoogleMap>
               </div>
             ) : (
               <div className="d-flex justify-content-center align-items-center" style={{ height: "800px", backgroundColor: "#f8f9fa" }}>
-                <p className="mb-0 text-muted">Mechanic location not available</p>
+                <p className="mb-0 text-muted">No mechanics with location data available</p>
               </div>
             )}
           </div>
+        </div>
       </div>
-    </div>
-  );
+    );
 }

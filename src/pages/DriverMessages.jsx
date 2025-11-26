@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import FirstPerson from "../assets/images/firstPerson.png";
 import searchIcon from "../assets/images/SearchIcon.png";
 import sendIcon from "../assets/images/sendIcon.png";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { io } from "socket.io-client";
 import LoadingSpinner from "../components/LoadingSpinner";
@@ -12,7 +12,6 @@ import {
   useProfileQuery,
   useUploadImageMutation,
 } from "../services/apiQueries";
-
 
 const TypingDots = () => (
   <span style={{ display: "inline-block", marginLeft: 8 }}>
@@ -58,7 +57,7 @@ const TypingDots = () => (
   </span>
 );
 
-const ChatApp = () => {
+const DriverMessages = () => {
   const user = useSelector((state) => state.user.user);
   const [selectedChatId, setSelectedChatId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -84,9 +83,9 @@ const ChatApp = () => {
   const currentUser = profileData?.data;
   const isSideBarOpen = useOutletContext();
   const inbox = inboxData?.data || [];
+  const location = useLocation();
 
   const [onlineUsers, setOnlineUsers] = useState([]);
-
 
   const loadMessages = (chatId) => {
     try {
@@ -132,7 +131,7 @@ const ChatApp = () => {
       console.log("Disconnecting socket...");
       newSocket.disconnect();
     };
-  }, []); 
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -186,7 +185,6 @@ const ChatApp = () => {
             2000
           );
         } else {
-
           setTypingUserId(data.sender_id);
           if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(
@@ -244,24 +242,26 @@ const ChatApp = () => {
       }
     };
     const onChatHistory = (payload) => {
-      console.log('Received chat history payload:', payload);
+      console.log("Received chat history payload:", payload);
       if (!payload) return;
       const roomPartner =
         payload.sender_id ||
         (payload.room && (payload.room.sender_id || payload.room.receiver_id));
       const messagesList = payload.messages || payload.data || payload;
-      console.log('Messages list:', messagesList);
+      console.log("Messages list:", messagesList);
       if (!Array.isArray(messagesList)) return;
-      setMessages(
-        messagesList.map((m) => ({
-          from: m.sender_id === currentUser?.id ? "me" : "them",
-          text: m.message || m.text || m.body,
-          time: m.created_at
-            ? new Date(m.created_at).toLocaleTimeString()
-            : new Date().toLocaleTimeString(),
-          raw: m,
-        }))
-      );
+      const mappedMessages = messagesList.map((m) => ({
+        from: m.sender_id === currentUser?.id ? "me" : "them",
+        text: m.message || m.text || m.body,
+        time: m.created_at
+          ? new Date(m.created_at).toLocaleTimeString()
+          : new Date().toLocaleTimeString(),
+        raw: m,
+      }));
+      setMessages(mappedMessages);
+      if (selectedChatId) {
+        saveMessages(selectedChatId, mappedMessages);
+      }
     };
 
     socket.on("receive_message", onReceive);
@@ -279,47 +279,55 @@ const ChatApp = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSelectChat = async (chatId) => {
-    setSelectedChatId(chatId);
-
-    const chatMessages = loadMessages(chatId) || [];
-    const selectedChat = inbox.find((chat) => chat.user.id === chatId);
-
-    let initialMessages = chatMessages;
-    if (initialMessages.length === 0 && selectedChat && selectedChat.last_message) {
-      const lastMsg = {
-        from: selectedChat.user.id === currentUser?.id ? "me" : "them",
-        text: selectedChat.last_message,
-        time: selectedChat.last_message_time || new Date().toLocaleTimeString(),
-      };
-      initialMessages = [lastMsg];
-      saveMessages(chatId, initialMessages);
-    }
-    setMessages(initialMessages);
-    const chatIndex = inbox.findIndex((chat) => chat.user.id === chatId);
-    try {
-      await markAsReadMutation.mutateAsync({
-        chat_id: chatIndex + 1,
-        is_read: true,
-      });
-    } catch (err) {
-    }
-
-    if (socket && socket.connected && currentUser && currentUser.id) {
-      socket.emit("join_room", {
-        sender_id: currentUser.id,
-        receiver_id: chatId,
-      });
-      if (!loadedChats.has(chatId)) {
-        console.log('Requesting messages for chat', chatId);
-        socket.emit("get_messages", {
-          sender_id: currentUser.id,
-          receiver_id: chatId,
-        });
-        setLoadedChats((prev) => new Set([...prev, chatId]));
+  useEffect(() => {
+    if (location.state?.driverId) {
+      const driverId = parseInt(location.state.driverId);
+      if (inbox.length > 0) {
+        const chat = inbox.find(chat => chat.user.id === driverId);
+        if (chat) {
+          setSelectedChatId(chat.user.id);
+        } else {
+          // If not in inbox, set selectedChatId to driverId to start new chat
+          setSelectedChatId(driverId);
+          // Load any existing local messages
+          const chatMessages = loadMessages(driverId) || [];
+          setMessages(chatMessages);
+          // Initialize for new chat
+          if (socket && socket.connected && currentUser && currentUser.id) {
+            socket.emit("join_room", {
+              sender_id: currentUser.id,
+              receiver_id: driverId,
+            });
+            socket.emit("get_messages", {
+              sender_id: currentUser.id,
+              receiver_id: driverId,
+            });
+            setLoadedChats((prev) => new Set([...prev, driverId]));
+          }
+        }
+      } else {
+        // Inbox not loaded yet, set selectedChatId to driverId
+        setSelectedChatId(driverId);
+        // Load any existing local messages
+        const chatMessages = loadMessages(driverId) || [];
+        setMessages(chatMessages);
+        // Initialize for new chat
+        if (socket && socket.connected && currentUser && currentUser.id) {
+          socket.emit("join_room", {
+            sender_id: currentUser.id,
+            receiver_id: driverId,
+          });
+          socket.emit("get_messages", {
+            sender_id: currentUser.id,
+            receiver_id: driverId,
+          });
+          setLoadedChats((prev) => new Set([...prev, driverId]));
+        }
       }
     }
-  };
+  }, [inbox, location.state, socket, currentUser]);
+
+
   const handleTyping = () => {
     if (!socket || !currentUser?.id || !selectedChatId) return;
 
@@ -404,11 +412,9 @@ const ChatApp = () => {
     }
   };
 
-  const filteredInbox = inbox.filter(thread =>
-    `${thread.user.first_name} ${thread.user.last_name}`.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
-  const selectedChat = inbox.find((chat) => chat.user.id === selectedChatId);
+
+  const selectedChat = inbox.find((chat) => chat.user.id === selectedChatId) || (location.state?.driverData ? { user: location.state.driverData, last_message: '', last_message_time: '' } : null);
 
   return (
     <div
@@ -419,216 +425,51 @@ const ChatApp = () => {
     >
       <div
         className="rounded-3 innerWrapper bg-[#E9E9E9]"
-        style={{ padding: 20 }}
+        style={{ padding: 20, minHeight: "100vh" }}
       >
         <h5 className="colorOrange">Messages</h5>
 
+        {/* Chat pane */}
         <div
-          className="m-0 d-flex flex-column flex-md-row gap-3"
-          style={{ minHeight: 520 }}
+          className="chat-area shadow-lg detailsBox rounded-5"
+          style={{
+            maxHeight: 650,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            background: "#fff",
+            marginTop: 20,
+          }}
         >
-          {/* Left column - threads */}
-          <div
-            className="flex-fill message-list shadow-lg rounded-5"
-            style={{
-              maxHeight: 650,
-              // minWidth: 320,
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div className="message-header" style={{ padding: 12 }}>
-              <div className="search-container mb-2">
-                <div className="bg-white d-flex rounded-2 px-3 py-2 align-items-center shadow-sm">
-                  <div className="input-group flex-grow-1">
-                    <input
-                      type="text"
-                      className="form-control border-0"
-                      placeholder="Search"
-                      aria-label="Search"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <span className="input-group-text bg-white border-0">
-                      <img
-                        src={searchIcon}
-                        alt="Search"
-                        style={{ width: 16, height: 16 }}
-                      />
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="message-threads"
-              style={{ overflowY: "auto", padding: 8, flex: "1 1 auto" }}
-            >
-              {inboxLoading ? (
-                <div className="py-4">
-                  <LoadingSpinner />
-                </div>
-              ) : filteredInbox.length === 0 ? (
-                <div className="text-center py-4">No user found</div>
-              ) : (
-                filteredInbox.map((thread, index) => {
-                  const unread = thread.unread_count || thread.unread || 0;
-                  const partnerId = thread.user?.id;
-                  const showTypingInThread =
-                    (typingUserId && typingUserId === partnerId) ||
-                    (partnerId === selectedChatId && isTyping);
-                  return (
-                    <div
-                      key={partnerId}
-                      className={`message-thread d-flex gap-2 py-3 px-2 rounded ${
-                        selectedChatId === partnerId ? "active bg-light" : ""
-                      }`}
-                      onClick={() => handleSelectChat(partnerId)}
-                      style={{ cursor: "pointer", alignItems: "center" }}
-                    >
-                      <div className="position-relative" style={{ width: 48 }}>
-                        <img
-                          src={thread.user.avatar || FirstPerson}
-                          alt={thread.user.first_name}
-                          className="rounded-circle"
-                          width="48"
-                          height="48"
-                          style={{ objectFit: "cover" }}
-                        />
-                        {isUserOnline(partnerId) && (
-                          <span
-                            style={{
-                              position: "absolute",
-                              bottom: 2,
-                              right: 2,
-                              width: 12,
-                              height: 12,
-                              background: "green",
-                              borderRadius: "50%",
-                              border: "2px solid white",
-                            }}
-                          />
-                        )}
-                      </div>
-
-                      <div className="flex-grow-1" style={{ minWidth: 0 }}>
-                        <div className="d-flex justify-content-between align-items-start">
-                          <strong
-                            className="text-orange-custom"
-                            style={{
-                              fontSize: 14,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {thread.user.first_name} {thread.user.last_name}
-                          </strong>
-                          <div
-                            style={{
-                              minWidth: 70,
-                              textAlign: "right",
-                              fontSize: 12,
-                              color: "#8a8a8a",
-                            }}
-                          >
-                            {thread.last_message_time}
-                          </div>
-                        </div>
-
-                        <div
-                          className="d-flex justify-content-between align-items-center text-muted small"
-                          style={{ marginTop: 6 }}
-                        >
-                          <div
-                            style={{
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              maxWidth: 200,
-                            }}
-                          >
-                            {showTypingInThread ? (
-                              <span style={{ color: "#28a745" }}>
-                                Typing...
-                                <TypingDots />
-                              </span>
-                            ) : (
-                              <span style={{ color: "#6c757d" }}>
-                                {thread.last_message}
-                              </span>
-                            )}
-                          </div>
-
-                          <div style={{ marginLeft: 8 }}>
-                            {unread > 0 && (
-                              <span
-                                style={{
-                                  background: "#0d1b3b",
-                                  color: "white",
-                                  padding: "6px 10px",
-                                  borderRadius: "20px",
-                                  fontSize: 12,
-                                  minWidth: 24,
-                                  textAlign: "center",
-                                }}
-                              >
-                                {unread}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Right column - chat pane */}
-          <div
-            className="flex-fill chat-area shadow-lg detailsBox rounded-5"
-            style={{
-              maxHeight: 650,
-              // flex: "1 1 0",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-              // minWidth: 420,
-              background: "#fff",
-            }}
-          >
             {selectedChat ? (
               <>
                 {/* header */}
                 <div
-                  className="chat-header mb-3 d-flex align-items-center gap-2"
-                  style={{ paddingBottom: 16, borderBottom: "1px solid #f0f0f0" }}
+                  className="chat-header mb-3 d-flex flex-column align-items-center text-center"
+                  style={{
+                    paddingBottom: 16,
+                  }}
                 >
                   <img
-                    src={selectedChat.user.avatar || FirstPerson}
-                    alt={selectedChat.user.first_name}
-                    className="rounded-circle"
-                    width="56"
-                    height="56"
-                    style={{ objectFit: "cover" }}
+                    src={selectedChat.user ? selectedChat.user.avatar || FirstPerson : FirstPerson}
+                    alt={selectedChat.user ? selectedChat.user.first_name : "User"}
+                    className="rounded-circle mb-2"
+                    width="100"
+                    height="100"
+                    style={{ border: "1px solid #f55227" }}
                   />
-                  <div style={{ flex: 1 }}>
+                  <div>
                     <h5
                       className="mb-0 text-orange-custom"
                       style={{ marginBottom: 4 }}
                     >
-                      {selectedChat.user.first_name}{" "}
-                      {selectedChat.user.last_name}
+                      {selectedChat.user ? `${selectedChat.user.first_name} ${selectedChat.user.last_name}` : "Unknown User"}
                     </h5>
-                    <div style={{ fontSize: 13, color: "#6c757d" }}>
-                      {isUserOnline(selectedChat.user.id)
+                    {/* <div style={{ fontSize: 13, color: "#6c757d" }}>
+                      {selectedChat.user && isUserOnline(selectedChat.user.id)
                         ? "Online"
                         : "Last seen " + (selectedChat.last_message_time || "")}
-                    </div>
+                    </div> */}
                   </div>
                 </div>
 
@@ -654,7 +495,7 @@ const ChatApp = () => {
                         }`}
                         style={{ alignItems: "flex-end" }}
                       >
-                        {!isMe && (
+                        {!isMe && selectedChat.user && (
                           <img
                             src={selectedChat.user.avatar || FirstPerson}
                             alt={selectedChat.user.first_name}
@@ -699,7 +540,6 @@ const ChatApp = () => {
                               msg.text
                             )}
                           </div>
-                         
                         </div>
 
                         {isMe && (
@@ -750,7 +590,7 @@ const ChatApp = () => {
                   )}
 
                   {/* typing indicator inside chat */}
-                  {typingUserId && typingUserId === selectedChat.user.id && (
+                  {typingUserId && selectedChat.user && typingUserId === selectedChat.user.id && (
                     <div
                       className="d-flex justify-content-start align-items-center"
                       style={{ marginTop: 4 }}
@@ -780,14 +620,7 @@ const ChatApp = () => {
                   <div ref={messagesEndRef} />
                 </div>
               </>
-            ) : (
-              <div
-                className="d-flex align-items-center justify-content-center"
-                style={{ minHeight: 300 }}
-              >
-                <h5 className="text-muted">Select a chat to start messaging</h5>
-              </div>
-            )}
+            ) : null}
 
             {/* message input */}
             {selectedChat && (
@@ -803,16 +636,26 @@ const ChatApp = () => {
                     <img
                       src={selectedUrl}
                       alt="preview"
-                      style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 8 }}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        objectFit: "cover",
+                        borderRadius: 8,
+                      }}
                     />
                     <button
                       className="btn btn-sm btn-outline-danger"
                       onClick={() => {
                         setSelectedUrl(null);
                         setSelectedFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
+                        if (fileInputRef.current)
+                          fileInputRef.current.value = "";
                       }}
-                      style={{ border: "none", background: "transparent", color: "red" }}
+                      style={{
+                        border: "none",
+                        background: "transparent",
+                        color: "red",
+                      }}
                     >
                       ✕
                     </button>
@@ -837,7 +680,8 @@ const ChatApp = () => {
                       if (file) {
                         setIsUploading(true);
                         try {
-                          const uploadResult = await uploadImageMutation.mutateAsync(file);
+                          const uploadResult =
+                            await uploadImageMutation.mutateAsync(file);
                           setSelectedUrl(uploadResult.data.url);
                           setSelectedFile(file);
                         } catch (error) {
@@ -865,7 +709,9 @@ const ChatApp = () => {
                   <button
                     className="backgroundOrange rounded-3 btn-sm"
                     onClick={handleSendMessage}
-                    disabled={(!newMessage.trim() && !selectedUrl) || isUploading}
+                    disabled={
+                      (!newMessage.trim() && !selectedUrl) || isUploading
+                    }
                     style={{
                       background: "#e75a36",
                       border: "none",
@@ -885,11 +731,10 @@ const ChatApp = () => {
                 </div>
               </div>
             )}
-          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default ChatApp;
+export default DriverMessages;

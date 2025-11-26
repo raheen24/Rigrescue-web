@@ -1,95 +1,92 @@
-import Ellipse from "../assets/images/Ellipse1.png";
-import picturePdf from "../assets/images/picture_as_pdf.png";
-import locationdot from "../assets/images/locationdot.png";
-import CustomTextField from "../components/CustomTextField";
-import deleteIcon from "../assets/images/deleteIcon.png";
-import editIcon from "../assets/images/editImg.png";
-import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { apiHelper } from "../services";
 import { toast } from "react-toastify";
-import CustomButton from "../components/GlobalBtn";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import locationdot from "../assets/images/locationdot.png";
+
+const containerStyle = {
+  width: "100%",
+  height: "800px",
+};
+
+const center = {
+  lat: 40.7128, // Default to New York or some central location
+  lng: -74.0060,
+};
 
 export default function TrackDriver() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const driverId = location.state?.driverId;
-  const [driverData, setDriverData] = useState(null);
+  const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isSideBarOpen = useOutletContext();
 
   useEffect(() => {
-    if (driverId) {
-      const fetchDriver = async () => {
-        setLoading(true);
-        const { error, response } = await apiHelper("GET", `/web/fleet/driver/${driverId}`);
-        if (error) {
-          toast.error(error);
+    const fetchDrivers = async () => {
+      setLoading(true);
+      const { error, response } = await apiHelper("GET", "/web/fleet/drivers?status=active");
+      if (error) {
+        toast.error(error);
+        setDrivers([]);
+      } else {
+        if (response.data.success === false) {
+          toast.error(response.data.message);
+          setDrivers([]);
         } else {
-          setDriverData(response.data.data);
+          setDrivers(response.data.data);
         }
-        setLoading(false);
-      };
-      fetchDriver();
-    } else {
+      }
       setLoading(false);
-    }
-  }, [driverId]);
+    };
+    fetchDrivers();
+  }, []);
 
-  const handleMapClick = () => {
-    navigate(-1);
+  const handleMarkerClick = (driver) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${driver.latitude},${driver.longitude}`;
+    window.open(url, "_blank");
   };
-  const isSideBarOpen = useOutletContext();
 
   return (
     <div
       className={`content_section ${
         isSideBarOpen ? "" : "content_section_close"
-      }home_page`}
+      } home_page`}
       style={{ minHeight: "100vh" }}
     >
-      <div
-        className="rounded-4 innerWrapper shadow-sm"
-        onClick={handleMapClick}
-      >
-        <div className="col-12 mt-4">
-          <h5 className="colorOrange">Track Driver</h5>
+      <div className="rounded-4 innerWrapper shadow-sm">
+        <div className="col-12">
+          <h5 className="colorOrange mb-3">Track Drivers</h5>
           {loading ? (
-            <div style={{ height: "800px" }}>
+            <div style={{ height: "550px" }}>
               <LoadingSpinner />
             </div>
-          ) : driverData && driverData.latitude && driverData.longitude ? (
-            <div
-              className="rounded-4 overflow-hidden border-orange position-relative"
-              style={{ height: "800px", border: "2px solid" }}
-            >
-              <iframe
-                src={`https://maps.google.com/maps?q=${driverData.latitude},${driverData.longitude}&output=embed`}
-                width="100%"
-                height="100%"
-                frameBorder="0"
-                allowFullScreen=""
-                aria-hidden="false"
-                tabIndex="0"
-                title="Map"
-              ></iframe>
-              <img
-                src={locationdot}
-                alt="Location Marker"
-                className="position-absolute"
-                style={{
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '30px',
-                  height: '30px',
-                  pointerEvents: 'none'
-                }}
-              />
-            </div>
           ) : (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: "800px", backgroundColor: "#f8f9fa" }}>
-              <p className="mb-0 text-muted">Driver location not available</p>
+            <div
+              className="rounded-4 overflow-hidden border-orange"
+              style={{ height: "550px", border: "2px solid" }}
+            >
+              <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={center}
+                zoom={10}
+              >
+                {drivers
+                  .filter((driver) => driver.latitude && driver.longitude)
+                  .map((driver) => (
+                    <Marker
+                      key={driver.id}
+                      position={{
+                        lat: parseFloat(driver.latitude),
+                        lng: parseFloat(driver.longitude),
+                      }}
+                      icon={{
+                        url: locationdot,
+                        scaledSize: new window.google.maps.Size(30, 30),
+                      }}
+                      onClick={() => handleMarkerClick(driver)}
+                    />
+                  ))}
+              </GoogleMap>
             </div>
           )}
         </div>

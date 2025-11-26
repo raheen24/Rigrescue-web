@@ -9,6 +9,7 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  
 } from "chart.js";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -19,7 +20,9 @@ import {
 } from "react-router-dom";
 import { toast } from "react-toastify";
 import { apiHelper } from "../services";
+import { useFleetBookingsGraphQuery } from "../services/apiQueries";
 import Img from "../assets/images/driverProf.png";
+import Group from "../assets/images/Group.png";
 import LoadingSpinner from "../components/LoadingSpinner";
 import LocationIcon from "../assets/images/locationdot.png";
 import { LoadScript, GoogleMap, Marker } from "@react-google-maps/api";
@@ -38,6 +41,9 @@ const DashboardPage = () => {
   const navigate = useNavigate();
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const { data: graphData, isLoading: graphLoading } =
+    useFleetBookingsGraphQuery();
 
   const totalDrivers = drivers.length;
   const activeDrivers = drivers.filter((d) => d.latitude && d.longitude).length;
@@ -72,7 +78,7 @@ const DashboardPage = () => {
     cutout: "70%", // makes the doughnut thinner (inner radius)
     plugins: {
       legend: {
-        display: false, // hides legend
+        display: false, 
       },
       tooltip: {
         enabled: true,
@@ -88,21 +94,21 @@ const DashboardPage = () => {
   };
 
   const lineData = {
-    labels: Array.from({ length: 14 }, (_, i) => i + 10),
+    labels: graphData?.chart_data?.map((item) => item.day) || [],
     datasets: [
       {
         label: "Jobs",
-        data: [
-          40000, 50000, 60000, 45000, 70000, 50000, 83234, 60000, 65000, 60000,
-          58000, 61000, 55000, 60000,
-        ],
+        data: graphData?.chart_data?.map((item) => item.jobs) || [],
         fill: true,
-        backgroundColor: "rgba(255, 85, 62, 0.1)",
+        backgroundColor: "rgba(226, 85, 62, 0.35)", // more visible shaded fill
         borderColor: "#e2553e",
+        borderWidth: 2,
         tension: 0.4,
+        pointRadius: 0, // smooth mountain look
       },
     ],
   };
+
   const handleToNext = (driverId) => {
     navigate(`/fleet/my-drivers-detail/${driverId}`);
   };
@@ -217,10 +223,14 @@ const DashboardPage = () => {
                 }}
               >
                 <div style={{ width: "100%" }}>
-                  <Line
-                    data={lineData}
-                    options={{ ...lineOptions, maintainAspectRatio: false }}
-                  />
+                  {graphLoading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <Line
+                      data={lineData}
+                      options={{ ...lineOptions, maintainAspectRatio: false }}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -253,11 +263,14 @@ const DashboardPage = () => {
                     }}
                   >
                     <img
-                      src={driver.avatar || Img}
+                      src={driver.avatar || Group}
                       alt="Driver"
                       className="rounded-circle mb-2"
                       width="80"
                       height="80"
+                      onError={(e) => {
+                        e.target.src = Group;
+                      }}
                     />
                     <p className="mb-1 fw-bold colorOrange">
                       {driver.first_name} {driver.last_name}
@@ -285,7 +298,10 @@ const DashboardPage = () => {
               onClick={handleMapClick}
             >
               <iframe
-                src={`https://maps.google.com/maps?q=${drivers.filter(d => d.latitude && d.longitude).map(d => `${d.latitude},${d.longitude}`).join('&q=')}&output=embed`}
+                src={`https://maps.google.com/maps?q=${drivers
+                  .filter((d) => d.latitude && d.longitude)
+                  .map((d) => `${d.latitude},${d.longitude}`)
+                  .join("&q=")}&output=embed`}
                 width="100%"
                 height="100%"
                 frameBorder="0"
@@ -293,19 +309,19 @@ const DashboardPage = () => {
                 aria-hidden="false"
                 tabIndex="0"
                 title="Drivers Location Map"
-                style={{ pointerEvents: 'none' }}
+                style={{ pointerEvents: "none" }}
               ></iframe>
               <img
                 src={LocationIcon}
                 alt="Location Marker"
                 className="position-absolute"
                 style={{
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '30px',
-                  height: '30px',
-                  pointerEvents: 'none'
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "30px",
+                  height: "30px",
+                  pointerEvents: "none",
                 }}
               />
             </div>

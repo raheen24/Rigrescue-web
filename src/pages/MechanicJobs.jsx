@@ -15,7 +15,7 @@ const MechanicJobs = () => {
 
   const status = activeTab === "current" ? "ongoing" : "completed";
   const { data, isLoading } = useServiceBookingsQuery(status, search);
-  const jobs = data || [];
+  const jobs = data?.data ? data.data : (Array.isArray(data) ? data : []);
 
   const truncateText = (text, maxWords) => {
     const words = text.split(' ');
@@ -74,7 +74,7 @@ const MechanicJobs = () => {
           style={{ objectFit: "cover" }}
         />
         <span className="fw-semibold text-orange text-nowrap">
-          {job.quotation.mechanic_name}
+          {job.driver_name}
         </span>
       </td>
       <td className="text-muted small" style={{ wordBreak: "break-word" }}>
@@ -108,7 +108,7 @@ const MechanicJobs = () => {
 
   const renderPreviousOrderRow = (job) => (
     <tr key={job.id}>
-      <td className="d-flex align-items-center gap-2">
+      <td className="d-flex align-items-center gap-2 text-center">
         <img
           src={job.quotation.mechanic_avatar || DriversProf}
           alt="Mechanic"
@@ -118,7 +118,7 @@ const MechanicJobs = () => {
           style={{ objectFit: "cover" }}
         />
         <span className="fw-semibold text-orange text-nowrap">
-          {job.quotation.mechanic_name}
+          {job.driver_name}
         </span>
       </td>
       <td className="text-muted small" style={{ wordBreak: "break-word" }}>

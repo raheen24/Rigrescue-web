@@ -19,7 +19,9 @@ import {
 } from "react-router-dom";
 import { toast } from "react-toastify";
 import { apiHelper } from "../services";
+import { useBookingsGraphQuery } from "../services/apiQueries";
 import Img from "../assets/images/driverProf.png";
+import Group from "../assets/images/Group.png";
 import LoadingSpinner from "../components/LoadingSpinner";
 import LocationIcon from "../assets/images/locationdot.png";
 ChartJS.register(
@@ -37,6 +39,7 @@ const ShopDashboard = () => {
   const navigate = useNavigate();
   const [mechanics, setMechanics] = useState([]);
   const [loading, setLoading] = useState(false);
+  const { data: graphData } = useBookingsGraphQuery();
 
   const totalMechanics = mechanics.length;
   const activeMechanics = mechanics.filter((m) => m.latitude && m.longitude).length;
@@ -86,21 +89,21 @@ const ShopDashboard = () => {
     maintainAspectRatio: false,
   };
 
-  const lineData = {
-    labels: Array.from({ length: 14 }, (_, i) => i + 10),
+  const lineData = graphData ? {
+    labels: graphData.x_axis?.labels || [],
     datasets: [
       {
         label: "Jobs",
-        data: [
-          40000, 50000, 60000, 45000, 70000, 50000, 83234, 60000, 65000, 60000,
-          58000, 61000, 55000, 60000,
-        ],
+        data: graphData.chart_data?.line_data?.map(d => d.jobs) || [],
         fill: true,
         backgroundColor: "rgba(255, 85, 62, 0.1)",
         borderColor: "#e2553e",
         tension: 0.4,
       },
     ],
+  } : {
+    labels: [],
+    datasets: [],
   };
   const handleToNext = (mechanicId) => {
     navigate(`/shop-owner/mechanic-account/${mechanicId}`);
@@ -202,9 +205,9 @@ const ShopDashboard = () => {
           <div className="col-md-6">
             <div className="graphBox p-4 bg-white rounded-4 shadow-sm">
               <div className="d-flex justify-content-between align-items-center mb-4">
-                <h5 className="mb-0 colorOrange">All Orders</h5>
+                <h5 className="mb-0 colorOrange">Total Orders</h5>
                 <select className="form-select backgroundColorGb form-select-sm w-auto text-white">
-                  <option>This Month</option>
+                  <option>{graphData?.current_month || "This Month"}</option>
                 </select>
               </div>
               <div
@@ -218,7 +221,20 @@ const ShopDashboard = () => {
                 <div style={{ width: "100%" }}>
                   <Line
                     data={lineData}
-                    options={{ ...lineOptions, maintainAspectRatio: false }}
+                    options={{
+                      ...lineOptions,
+                      maintainAspectRatio: false,
+                      scales: {
+                        ...lineOptions.scales,
+                        y: {
+                          ...lineOptions.scales.y,
+                          max: graphData?.max_value,
+                          ticks: {
+                            stepSize: graphData ? graphData.max_value / (graphData.y_axis?.intervals || 1) : 1,
+                          },
+                        },
+                      },
+                    }}
                   />
                 </div>
               </div>
@@ -252,11 +268,12 @@ const ShopDashboard = () => {
                     }}
                   >
                     <img
-                      src={mechanic.avatar || Img}
+                      src={mechanic.avatar || Group}
                       alt="Mechanic"
                       className="rounded-circle mb-2"
                       width="80"
                       height="80"
+                      onError={(e) => { e.target.src = Group; }}
                     />
                     <p className="mb-1 fw-bold colorOrange">
                       {mechanic.first_name} {mechanic.last_name}

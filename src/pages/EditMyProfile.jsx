@@ -4,7 +4,8 @@ import profileImage from "../assets/images/profile-image.png";
 import CustomTextField from "../components/CustomTextField";
 import UploadIcon from "../assets/images/uploadIcon.png";
 import { useState, useEffect, useRef } from "react";
-import { useProfileQuery, useUpdateProfileMutation } from "../services/apiQueries";
+import { useProfileQuery } from "../services/apiQueries";
+import { apiHelper } from "../services/index.js";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
 import PlacesAutocomplete, {
@@ -34,7 +35,6 @@ export default function EditMyProfile() {
   const [avatarPreview, setAvatarPreview] = useState(profileImage);
 
   const { data: profileData, isLoading } = useProfileQuery();
-  const updateMutation = useUpdateProfileMutation();
 
   useEffect(() => {
     if (profileData?.data) {
@@ -57,13 +57,13 @@ export default function EditMyProfile() {
   }, [profileData]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({ ...prev, avatar: file }));
+      setFormData((prev) => ({ ...prev, avatar: file }));
       const reader = new FileReader();
       reader.onload = () => setAvatarPreview(reader.result);
       reader.readAsDataURL(file);
@@ -85,23 +85,31 @@ export default function EditMyProfile() {
       data.append("avatar", formData.avatar);
     }
 
-    updateMutation.mutate(data, {
-      onSuccess: () => {
-        const profilePath = role === "shop_owner" ? "/shop-owner/my-profile" : "/fleet/my-profile";
-        toast.success("Profile updated successfully");
-        navigate(profilePath);
-      },
-      onError: (error) => {
-        toast.error(error.message);
-      },
-      onSettled: () => {
+    const customHeaders =
+      data instanceof FormData ? { "Content-Type": "multipart/form-data" } : {};
+    apiHelper("POST", "/web/profile/update", customHeaders, data)
+      .then((res) => {
+        if (res.error) {
+          toast.error(res.error);
+        } else {
+          const profilePath =
+            role === "shop_owner"
+              ? "/shop-owner/my-profile"
+              : "/fleet/my-profile";
+          toast.success("Profile updated successfully");
+          navigate(profilePath);
+        }
         setSaving(false);
-      },
-    });
+      })
+      .catch((error) => {
+        toast.error(error.message || "Something went wrong");
+        setSaving(false);
+      });
   };
 
   const handleClick = () => {
-    const profilePath = role === "shop_owner" ? "/shop-owner/my-profile" : "/fleet/my-profile";
+    const profilePath =
+      role === "shop_owner" ? "/shop-owner/my-profile" : "/fleet/my-profile";
     navigate(profilePath);
   };
   if (isLoading) {
@@ -150,16 +158,15 @@ export default function EditMyProfile() {
                 src={avatarPreview}
                 alt="Profile"
                 className="avatar rounded-circle"
-
               />
 
               {/* Upload Icon Overlay */}
               <div
                 className="position-absolute d-flex align-items-center justify-content-center bg-white border rounded-circle shadow"
                 style={{
-                  width: "36px",
+                  width: "35px",
                   height: "36px",
-                  marginTop: "-70px",
+                  marginTop: "-50px",
                   right: "10px",
                   transform: "translate(25%, 25%)",
                   cursor: "pointer",
@@ -184,7 +191,11 @@ export default function EditMyProfile() {
           {/* Left Column - Basic Info */}
           <div className="d-flex align-items-center justify-content-between mb-4 border-bottom">
             <div>
-              <h4 className="fw-bold m-0">Lorem Ipsum Fleet</h4>
+              <h4 className="name fw-bold m-0 text-center text-capitalize m-2">
+                {profileData?.data
+                  ? `${profileData.data.first_name} ${profileData.data.last_name}`
+                  : "N/A"}
+              </h4>{" "}
             </div>
             <div className="d-flex gap-2">
               <CustomButton
@@ -197,27 +208,31 @@ export default function EditMyProfile() {
           <div className="col-md-6">
             <div className="mb-4">
               <div className="mb-4">
-                <div className="mb-3 d-flex justify-content-between">
+                <div className="mb-2 d-flex justify-content-between">
                   <CustomTextField
                     label={"First Name"}
                     placeholder="First Name"
                     className="w-100"
                     value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("firstName", e.target.value)
+                    }
                   />
                 </div>
 
-                <div className="mb-3 d-flex justify-content-between">
+                <div className="mb-2 d-flex justify-content-between">
                   <CustomTextField
                     label={"Last Name"}
                     placeholder="Last Name"
                     className="w-100"
                     value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("lastName", e.target.value)
+                    }
                   />
                 </div>
 
-                <div className="mb-3 d-flex justify-content-between">
+                <div className="mb-2 d-flex justify-content-between">
                   <CustomTextField
                     label={"Phone Number:"}
                     placeholder="+1 234 567 890"
@@ -227,7 +242,7 @@ export default function EditMyProfile() {
                   />
                 </div>
 
-                <div className="mb-3">
+                <div className="mb-2">
                   <label className="fw-bold mb-2">Location:</label>
                   <PlacesAutocomplete
                     value={formData.location}
@@ -264,8 +279,14 @@ export default function EditMyProfile() {
                               ? "suggestion-item--active"
                               : "suggestion-item";
                             const style = suggestion.active
-                              ? { backgroundColor: "#fafafa", cursor: "pointer" }
-                              : { backgroundColor: "#ffffff", cursor: "pointer" };
+                              ? {
+                                  backgroundColor: "#fafafa",
+                                  cursor: "pointer",
+                                }
+                              : {
+                                  backgroundColor: "#ffffff",
+                                  cursor: "pointer",
+                                };
                             return (
                               <div
                                 {...getSuggestionItemProps(suggestion, {
@@ -287,7 +308,7 @@ export default function EditMyProfile() {
           </div>
 
           <div className="col-md-6">
-            <div className="mb-3 d-flex justify-content-between">
+            <div className="mb-2 d-flex justify-content-between">
               <CustomTextField
                 label={"Website:"}
                 placeholder="Website"
@@ -298,7 +319,7 @@ export default function EditMyProfile() {
             </div>
             <div className="mb-3 d-flex justify-content-between">
               <div className="mb-3 w-100">
-                <label className="form-label">Bio:</label>
+                <label className="form-label fw-semibold">Bio:</label>
                 <textarea
                   className="form-control bgofTextFields"
                   rows={4}

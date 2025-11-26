@@ -47,6 +47,8 @@ import AccountDetails from "../pages/AccountDetails";
 import ApprovalScreen from "../pages/ApprovalScreen";
 import AddDriver from "../pages/AddDriver";
 import AddMechanic from "../pages/AddMechanic";
+import MechanicMessages from "../pages/MechanicMessages";
+import DriverMessages from "../pages/DriverMessages";
 const Navigation = () => {
   return (
     <BrowserRouter>
@@ -104,6 +106,7 @@ const Navigation = () => {
             <Route path={"/fleet/jobs-details"} element={<JobDetails />} />
             <Route path={"/fleet/budget-requests"} element={<BudgetRuquests />} />
             <Route path={"/fleet/messages"} element={<Messages />} />
+            <Route path={"/fleet/driver-messages"} element={<DriverMessages />} />
             <Route path={"/fleet/settings"} element={<SettingsPage />} />
             <Route path={"/fleet/my-profile"} element={<MyProfile />} />
             <Route path={"/fleet/edit-profile"} element={<EditMyProfile />} />
@@ -113,6 +116,7 @@ const Navigation = () => {
             <Route path={"/shop-owner/dashboard"} element={<ShopDashboard />} />
 
             <Route path={"/shop-owner/messages"} element={<Messages />} />
+            <Route path={"/shop-owner/mechanic-messages"} element={<MechanicMessages />} />
             <Route path={"/shop-owner/settings"} element={<SettingsPage />} />
             <Route path={"/shop-owner/my-profile"} element={<MyProfile />} />
             <Route path={"/shop-owner/edit-profile"} element={<EditMyProfile />} />
@@ -137,7 +141,7 @@ const Navigation = () => {
               element={<EditMechanicsAccount />}
             />
             <Route
-              path={"/shop-owner/ratings-and-reviews"}
+              path={"/shop-owner/ratings-and-reviews/:mechanicId"}
               element={<RatingsAndReviews />}
             />
             <Route path={"/shop-owner/order-details"} element={<OrderDetails />} />
