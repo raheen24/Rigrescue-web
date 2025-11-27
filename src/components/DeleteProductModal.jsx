@@ -30,6 +30,7 @@ function DeleteProductModal({ show, onHide, onConfirm }) {
   return (
     <div
       className="modal d-block"
+      onClick={onHide}
       style={{
         backgroundColor: "rgba(0, 0, 0, 0.3)",
         backdropFilter: "blur(5px)",
@@ -37,6 +38,7 @@ function DeleteProductModal({ show, onHide, onConfirm }) {
     >
       <div
         className="modal-dialog"
+        onClick={(e) => e.stopPropagation()}
         style={{
           width: "280px",
           margin: "auto",
@@ -118,6 +120,9 @@ function DeleteProductModal({ show, onHide, onConfirm }) {
               type="button"
               onClick={onHide}
               className="btn btn-outline-secondary px-4"
+              style={{
+                borderBottomLeftRadius: "12px",
+              }}
             >
               Cancel
             </button>
@@ -125,6 +130,9 @@ function DeleteProductModal({ show, onHide, onConfirm }) {
               type="button"
               onClick={handleConfirm}
               className="btn btn-outline-secondary px-4"
+              style={{
+                borderBottomRightRadius: "12px",
+              }}
             >
               Delete
             </button>

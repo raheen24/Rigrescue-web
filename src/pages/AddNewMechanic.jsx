@@ -107,6 +107,7 @@ export default function AddNewMechanic() {
                       left: "50%",
                       transform: "translate(-50%, -50%)",
                       zIndex: 2,
+                     
                     }}
                     onClick={() =>
                       document.getElementById("avatar-upload").click()
@@ -232,6 +233,9 @@ export default function AddNewMechanic() {
                             backgroundSize: "cover",
                             backgroundPosition: "center",
                             minHeight: "200px",
+                              display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
                         >
                           <label
@@ -243,12 +247,12 @@ export default function AddNewMechanic() {
                             }}
                           >
                             {!certificationPreview && (
-                              <div className="d-flex ">
+                              <div className="d-flex gap-2">
                                 <img
                                   src={picturePdf}
                                   alt="Driver License"
                                   className="img-fluid"
-                                  width="30"
+                                  width="50"
                                   height="auto"
                                 />
                                 <p className="mt-2">

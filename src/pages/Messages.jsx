@@ -4,6 +4,7 @@ import searchIcon from "../assets/images/SearchIcon.png";
 import sendIcon from "../assets/images/sendIcon.png";
 import { useOutletContext } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { useQueryClient } from "@tanstack/react-query";
 import { io } from "socket.io-client";
 import LoadingSpinner from "../components/LoadingSpinner";
 import {
@@ -71,11 +72,20 @@ const ChatApp = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedUrl, setSelectedUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [readChats, setReadChats] = useState(() => {
+    try {
+      const stored = localStorage.getItem('readChats');
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emitStopTypingRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const queryClient = useQueryClient();
   const { data: inboxData, isLoading: inboxLoading } = useChatInboxQuery();
   const { data: profileData } = useProfileQuery();
   const markAsReadMutation = useMarkChatAsReadMutation();
@@ -205,6 +215,7 @@ const ChatApp = () => {
   }, [socket, selectedChatId, currentUser?.id]);
 
   useEffect(() => {
+    console.log("Setting up message listeners...");
     if (!socket) return;
     const onReceive = (messageData) => {
       if (!messageData) return;
@@ -231,11 +242,24 @@ const ChatApp = () => {
           return updatedMessages;
         });
         if (!fromMe && markAsReadMutation) {
+          const chatIndex = inbox.findIndex((c) => c.user.id === selectedChatId);
           markAsReadMutation
             .mutateAsync({
-              chat_id:
-                inbox.findIndex((c) => c.user.id === selectedChatId) + 1 || 0,
+              chat_id: chatIndex + 1 || 0,
               is_read: true,
+            })
+            .then(() => {
+              // On success, update the unread count to 0 immediately
+              queryClient.setQueryData(["chatInbox"], (oldData) => {
+                if (!oldData || !oldData.data) return oldData;
+                const newData = { ...oldData, data: [...oldData.data] };
+                if (newData.data[chatIndex]) {
+                  newData.data[chatIndex] = { ...newData.data[chatIndex], unread_count: 0, unread: 0 };
+                }
+                return newData;
+              });
+              // Mark as read locally
+              setReadChats(prev => new Set([...prev, selectedChatId]));
             })
             .catch(() => {});
         }
@@ -266,7 +290,7 @@ const ChatApp = () => {
 
     socket.on("receive_message", onReceive);
     socket.on("chat_history", onChatHistory);
-    socket.on("get_messages_response", onChatHistory);
+    socket.on("response", onChatHistory);
 
     return () => {
       socket.off("receive_message", onReceive);
@@ -278,6 +302,14 @@ const ChatApp = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('readChats', JSON.stringify([...readChats]));
+    } catch (error) {
+      console.error("Error saving readChats:", error);
+    }
+  }, [readChats]);
 
   const handleSelectChat = async (chatId) => {
     setSelectedChatId(chatId);
@@ -302,22 +334,33 @@ const ChatApp = () => {
         chat_id: chatIndex + 1,
         is_read: true,
       });
+      // On success, update the unread count to 0 immediately
+      queryClient.setQueryData(["chatInbox"], (oldData) => {
+        if (!oldData || !oldData.data) return oldData;
+        const newData = { ...oldData, data: [...oldData.data] };
+        if (newData.data[chatIndex]) {
+          newData.data[chatIndex] = { ...newData.data[chatIndex], unread_count: 0, unread: 0 };
+        }
+        return newData;
+      });
+      // Mark as read locally
+      setReadChats(prev => new Set([...prev, chatId]));
     } catch (err) {
     }
 
     if (socket && socket.connected && currentUser && currentUser.id) {
-      socket.emit("join_room", {
-        sender_id: currentUser.id,
-        receiver_id: chatId,
-      });
-      if (!loadedChats.has(chatId)) {
+      // socket.emit("join_room", {
+      //   sender_id: currentUser.id,
+      //   receiver_id: chatId,
+      // });
+      console.log('Loaded chats:', loadedChats);
         console.log('Requesting messages for chat', chatId);
-        socket.emit("get_messages", {
+        socket.emit("chat:message:list", {
           sender_id: currentUser.id,
           receiver_id: chatId,
         });
         setLoadedChats((prev) => new Set([...prev, chatId]));
-      }
+      
     }
   };
   const handleTyping = () => {
@@ -372,7 +415,7 @@ const ChatApp = () => {
     };
 
     // Emit message
-    socket.emit("send_message", messageData);
+    socket.emit("chat:message:send", messageData);
 
     // locally add message immediately (optimistic)
     const localMessage = {
@@ -474,7 +517,7 @@ const ChatApp = () => {
                 <div className="text-center py-4">No user found</div>
               ) : (
                 filteredInbox.map((thread, index) => {
-                  const unread = thread.unread_count || thread.unread || 0;
+                   const unread = readChats.has(thread.user.id) ? 0 : (thread.unread_count || thread.unread || 0);
                   const partnerId = thread.user?.id;
                   const showTypingInThread =
                     (typingUserId && typingUserId === partnerId) ||
@@ -590,7 +633,7 @@ const ChatApp = () => {
 
           {/* Right column - chat pane */}
           <div
-            className="flex-fill chat-area shadow-lg detailsBox rounded-5"
+            className="flex-fill chat-area shadow-lg detailsBox rounded-5 p-3"
             style={{
               maxHeight: 650,
               // flex: "1 1 0",

@@ -23,7 +23,9 @@ export default function PreviousMechanicJobDetail() {
   const { data: job, isLoading, error } = useServiceBookingDetailsQuery(jobId);
 
   const handleMessageClick = () => {
-    navigate("/shop-owner/messages");
+    navigate("/shop-owner/mechanic-messages", {
+      state: { mechanicId: job.mechanic.id, mechanicData: job.mechanic },
+    });
   };
   const handleMecAccClick = () => {
     navigate("/shop-owner/mechanic-account");
@@ -51,7 +53,14 @@ export default function PreviousMechanicJobDetail() {
   }, [error]);
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "100vh" }}
+      >
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!job) {
@@ -99,37 +108,47 @@ export default function PreviousMechanicJobDetail() {
               <div className="text-center">
                 <div className="rounded-circle d-inline-flex align-items-center justify-content-center">
                   <a onClick={handleMecAccClick}>
-                    <img src={job.mechanic?.avatar || Ellipse} alt="" className="avatar" />
+                    <img
+                      src={job.mechanic?.avatar || Ellipse}
+                      alt=""
+                      className="avatar"
+                    />
                   </a>
                 </div>
-                <p>{job.mechanic?.first_name || 'N/A'} {job.mechanic?.last_name || ''}</p>
+                <p>
+                  {job.mechanic?.first_name || "N/A"}{" "}
+                  {job.mechanic?.last_name || ""}
+                </p>
               </div>
 
               <h5 className=" pb-2 mb-3">Job Details</h5>
               <div className="mb-4 ">
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Job Date</span>
-                  <strong>{new Date(job.completed_at).toLocaleDateString()} | {new Date(job.completed_at).toLocaleTimeString()}</strong>
+                  <strong>
+                    {new Date(job.completed_at).toLocaleDateString()} |{" "}
+                    {new Date(job.completed_at).toLocaleTimeString()}
+                  </strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Mechanic Hourly Charges:</span>
-                  <strong>$ {job.mechanic?.hourly_rate || 'N/A'}</strong>
+                  <strong>$ {job.mechanic?.hourly_rate || "N/A"}</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Total Service Hours:</span>
-                  <strong>{job.total_hours || 'N/A'} Hours</strong>
+                  <strong>{job.total_hours || "N/A"} Hours</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Service Amount:</span>
-                  <strong>$ {job.service_charges || 'N/A'}</strong>
+                  <strong>$ {job.service_charges || "N/A"}</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom py-2">
                   <span className="text-muted">Product Amount:</span>
-                  <strong>$ {job.products_total || '0.00'}</strong>
+                  <strong>$ {job.products_total || "0.00"}</strong>
                 </div>
                 <div className="d-flex justify-content-between border-bottom align-items-center py-2 ">
                   <strong className="text-muted">Total Amount:</strong>
-                  <strong>$ {job.total_amount || 'N/A'}</strong>
+                  <strong>$ {job.total_amount || "N/A"}</strong>
                 </div>
               </div>
               {job.mechanic?.review && (
@@ -176,7 +195,10 @@ export default function PreviousMechanicJobDetail() {
               <div className="d-flex justify-content-between">
                 <div className="d-flex align-items-center justify-content-start ">
                   <img src={CustomerPic} alt="" />
-                  <p className="colorOrange">{job.driver?.first_name || 'N/A'} {job.driver?.last_name || ''}</p>
+                  <p className="colorOrange">
+                    {job.driver?.first_name || "N/A"}{" "}
+                    {job.driver?.last_name || ""}
+                  </p>
                 </div>
                 <div style={{ height: "10px" }} className=" align-items-center">
                   <CustomButton label={"Completed"} className="statusBtn" />
@@ -184,9 +206,7 @@ export default function PreviousMechanicJobDetail() {
               </div>
               <div className="p-0">
                 <h6 className="fw-bold fs-5">Issue</h6>
-                <p className="fw-light">
-                  {job.description}
-                </p>
+                <p className="fw-light">{job.description}</p>
               </div>
               <div className="d-flex justify-content-center">
                 <div className="issuesBox d-flex col-md-12 gap-2 my-2">
@@ -206,13 +226,19 @@ export default function PreviousMechanicJobDetail() {
                     src={product.image}
                     alt="product"
                     className="me-3 rounded"
-                    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+                    style={{
+                      width: "80px",
+                      height: "80px",
+                      objectFit: "contain",
+                    }}
                   />
                   <div>
                     <strong>{product.name}</strong>
                     <p>
                       {" "}
-                      <strong className="mb-0 text-muted small">${product.price}</strong>
+                      <strong className="mb-0 text-muted small">
+                        ${product.price}
+                      </strong>
                     </p>
                     <p className="mb-0 text-muted small">
                       {product.description}

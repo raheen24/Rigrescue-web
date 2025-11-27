@@ -63,7 +63,6 @@ const DriverMessages = () => {
   const [messages, setMessages] = useState([]);
   const [typingUserId, setTypingUserId] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [loadedChats, setLoadedChats] = useState(new Set());
   const [socket, setSocket] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,23 +86,6 @@ const DriverMessages = () => {
 
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  const loadMessages = (chatId) => {
-    try {
-      const stored = localStorage.getItem(`chat_messages_${chatId}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error("Error loading messages:", error);
-      return [];
-    }
-  };
-
-  const saveMessages = (chatId, messages) => {
-    try {
-      localStorage.setItem(`chat_messages_${chatId}`, JSON.stringify(messages));
-    } catch (error) {
-      console.error("Error saving messages:", error);
-    }
-  };
 
   useEffect(() => {
     const newSocket = io("https://server1.appsstaging.com:3004", {
@@ -223,11 +205,7 @@ const DriverMessages = () => {
       };
 
       if (involvesSelected) {
-        setMessages((prev) => {
-          const updatedMessages = [...prev, incoming];
-          saveMessages(selectedChatId, updatedMessages);
-          return updatedMessages;
-        });
+        setMessages((prev) => [...prev, incoming]);
         if (!fromMe && markAsReadMutation) {
           markAsReadMutation
             .mutateAsync({
@@ -250,28 +228,26 @@ const DriverMessages = () => {
       const messagesList = payload.messages || payload.data || payload;
       console.log("Messages list:", messagesList);
       if (!Array.isArray(messagesList)) return;
-      const mappedMessages = messagesList.map((m) => ({
-        from: m.sender_id === currentUser?.id ? "me" : "them",
-        text: m.message || m.text || m.body,
-        time: m.created_at
-          ? new Date(m.created_at).toLocaleTimeString()
-          : new Date().toLocaleTimeString(),
-        raw: m,
-      }));
-      setMessages(mappedMessages);
-      if (selectedChatId) {
-        saveMessages(selectedChatId, mappedMessages);
-      }
+      setMessages(
+        messagesList.map((m) => ({
+          from: m.sender_id === currentUser?.id ? "me" : "them",
+          text: m.message || m.text || m.body,
+          time: m.created_at
+            ? new Date(m.created_at).toLocaleTimeString()
+            : new Date().toLocaleTimeString(),
+          raw: m,
+        }))
+      );
     };
 
     socket.on("receive_message", onReceive);
     socket.on("chat_history", onChatHistory);
-    socket.on("get_messages_response", onChatHistory);
+    socket.on("response", onChatHistory);
 
     return () => {
       socket.off("receive_message", onReceive);
       socket.off("chat_history", onChatHistory);
-      socket.off("get_messages_response", onChatHistory);
+      socket.off("response", onChatHistory);
     };
   }, [socket, selectedChatId, currentUser, inbox, markAsReadMutation]);
 
@@ -282,50 +258,20 @@ const DriverMessages = () => {
   useEffect(() => {
     if (location.state?.driverId) {
       const driverId = parseInt(location.state.driverId);
-      if (inbox.length > 0) {
-        const chat = inbox.find(chat => chat.user.id === driverId);
-        if (chat) {
-          setSelectedChatId(chat.user.id);
-        } else {
-          // If not in inbox, set selectedChatId to driverId to start new chat
-          setSelectedChatId(driverId);
-          // Load any existing local messages
-          const chatMessages = loadMessages(driverId) || [];
-          setMessages(chatMessages);
-          // Initialize for new chat
-          if (socket && socket.connected && currentUser && currentUser.id) {
-            socket.emit("join_room", {
-              sender_id: currentUser.id,
-              receiver_id: driverId,
-            });
-            socket.emit("get_messages", {
-              sender_id: currentUser.id,
-              receiver_id: driverId,
-            });
-            setLoadedChats((prev) => new Set([...prev, driverId]));
-          }
-        }
-      } else {
-        // Inbox not loaded yet, set selectedChatId to driverId
+
+      // clear old messages
+      setMessages([]);
+
+      if (socket && socket.connected && currentUser?.id) {
+        socket.emit("chat:message:list", {
+          sender_id: currentUser.id,
+          receiver_id: driverId,
+        });
+
         setSelectedChatId(driverId);
-        // Load any existing local messages
-        const chatMessages = loadMessages(driverId) || [];
-        setMessages(chatMessages);
-        // Initialize for new chat
-        if (socket && socket.connected && currentUser && currentUser.id) {
-          socket.emit("join_room", {
-            sender_id: currentUser.id,
-            receiver_id: driverId,
-          });
-          socket.emit("get_messages", {
-            sender_id: currentUser.id,
-            receiver_id: driverId,
-          });
-          setLoadedChats((prev) => new Set([...prev, driverId]));
-        }
       }
     }
-  }, [inbox, location.state, socket, currentUser]);
+  }, [socket, location.state, currentUser]);
 
 
   const handleTyping = () => {
@@ -380,7 +326,7 @@ const DriverMessages = () => {
     };
 
     // Emit message
-    socket.emit("send_message", messageData);
+    socket.emit("chat:message:send", messageData);
 
     // locally add message immediately (optimistic)
     const localMessage = {
@@ -390,11 +336,7 @@ const DriverMessages = () => {
       raw: messageData,
     };
 
-    setMessages((prev) => {
-      const updatedMessages = [...prev, localMessage];
-      saveMessages(selectedChatId, updatedMessages);
-      return updatedMessages;
-    });
+    setMessages((prev) => [...prev, localMessage]);
 
     setNewMessage("");
     setSelectedFile(null);
@@ -704,7 +646,7 @@ const DriverMessages = () => {
                       handleTyping();
                     }}
                     onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    style={{ borderRadius: 12, padding: "12px 14px" }}
+                    style={{ borderRadius: 12, padding: "0px" }}
                   />
                   <button
                     className="backgroundOrange rounded-3 btn-sm"

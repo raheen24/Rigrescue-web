@@ -1,10 +1,12 @@
 import React, { useEffect } from "react";
 import Navigation from "./navigation/Navigation";
-import { ToastContainer } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import { ModalProvider } from "./components/ModalContext";
 import { Provider } from "react-redux";
 import { store } from "./redux/store";
 import { requestFirebaseNotificationPermission } from "./services/notificationService";
+import { getMessaging, onMessage } from "firebase/messaging";
+import { app } from "../public/firebase.js";
 
 const App = () => {
   useEffect(() => {
@@ -19,6 +21,15 @@ const App = () => {
     }
 
     requestFirebaseNotificationPermission();
+
+    const messaging = getMessaging(app);
+    onMessage(messaging, (payload) => {
+      console.log("Message received. ", payload);
+      toast.info(`${payload.notification.title}: ${payload.notification.body}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+    });
   }, []);
 
   return (

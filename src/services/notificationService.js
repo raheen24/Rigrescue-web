@@ -1,5 +1,5 @@
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { app } from "../../public/firebase.js"; 
+import { getMessaging, getToken } from "firebase/messaging";
+import { app } from "../../public/firebase.js";
 import { store } from "../redux/store.js";
 import { setFcmToken } from "../redux/userslice.js";
 
@@ -22,16 +22,6 @@ const requestFirebaseNotificationPermission = async () => {
     console.log("FCM token:", token);
 
     store.dispatch(setFcmToken(token));
-
-    // Listen for foreground messages
-    onMessage(messaging, (payload) => {
-      console.log("Message received. ", payload);
-      // Show notification
-      new Notification(payload.notification.title, {
-        body: payload.notification.body,
-        icon: "/firebase-logo.png",
-      });
-    });
 
     return token;
 

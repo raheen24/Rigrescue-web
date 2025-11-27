@@ -23,13 +23,17 @@ export default function MechanicJobDetail() {
   const { data: job, isLoading, error } = useServiceBookingDetailsQuery(jobId);
 
   const handleMessageClick = () => {
-    navigate("/shop-owner/messages");
+    navigate("/shop-owner/mechanic-messages", {
+      state: { mechanicId: job.mechanic.id, mechanicData: job.mechanic },
+    });
   };
   const handleMecAccClick = () => {
     navigate("/shop-owner/mechanic-account");
   };
   const handleMapClick = () => {
-    navigate("/shop-owner/track-mechanic", { state: { mechanic: job.mechanic } });
+    navigate("/shop-owner/track-mechanic", {
+      state: { mechanic: job.mechanic },
+    });
   };
   const [showModal2, setShowModal2] = useState(false);
 
@@ -51,7 +55,14 @@ export default function MechanicJobDetail() {
   }, [error]);
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "100vh" }}
+      >
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!job) {
@@ -66,7 +77,7 @@ export default function MechanicJobDetail() {
     >
       <div
         className="innerWrapper rounded-3 shadow-sm"
-        style={{ backgroundColor: "#E9E9E9" }}
+        // style={{ backgroundColor: "#E9E9E9" }}
       >
         {/* Header Section */}
         <h5 className="m-0 colorOrange mb-3">Job Details</h5>
@@ -89,19 +100,29 @@ export default function MechanicJobDetail() {
                 <div className="rounded-circle d-inline-flex align-items-center justify-content-center">
                   {job.mechanic && job.mechanic.first_name ? (
                     <a onClick={handleMecAccClick}>
-                      <img src={job.mechanic.avatar || Ellipse} alt="" className="avatar" />
+                      <img
+                        src={job.mechanic.avatar || Ellipse}
+                        alt=""
+                        className="avatar"
+                      />
                     </a>
                   ) : (
                     <img src={Ellipse} alt="" className="avatar" />
                   )}
                 </div>
-                <p>{job.mechanic && job.mechanic.first_name ? `${job.mechanic.first_name} ${job.mechanic.last_name}` : 'Mechanic not assigned'}</p>
+                <p>
+                  {job.mechanic && job.mechanic.first_name
+                    ? `${job.mechanic.first_name} ${job.mechanic.last_name}`
+                    : "Mechanic not assigned"}
+                </p>
               </div>
 
               <p>Hourly Rate</p>
               <div className="d-flex justify-content-center align-items-center mb-3">
                 <div className="rounded shadow-lg bgofTextFields w-100 py-3 d-flex justify-content-center align-items-center">
-                  <span className="fw-bold">$ {job.mechanic?.hourly_rate || 'N/A'}</span>
+                  <span className="fw-bold">
+                    $ {job.mechanic?.hourly_rate || "N/A"}
+                  </span>
                 </div>
               </div>
               {/* Location Section */}
@@ -111,7 +132,9 @@ export default function MechanicJobDetail() {
                   className="border rounded overflow-hidden position-relative"
                   style={{ height: "150px" }}
                 >
-                  {job.mechanic && job.mechanic.latitude && job.mechanic.longitude ? (
+                  {job.mechanic &&
+                  job.mechanic.latitude &&
+                  job.mechanic.longitude ? (
                     <>
                       <iframe
                         src={`https://maps.google.com/maps?q=${job.mechanic.latitude},${job.mechanic.longitude}&output=embed`}
@@ -122,25 +145,27 @@ export default function MechanicJobDetail() {
                         aria-hidden="false"
                         tabIndex="0"
                         title="Map"
-                        style={{ pointerEvents: 'none' }}
+                        style={{ pointerEvents: "none" }}
                       ></iframe>
                       <img
                         src={locationdot}
                         alt="Location Marker"
                         className="position-absolute"
                         style={{
-                          top: '50%',
-                          left: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          width: '20px',
-                          height: '20px',
-                          pointerEvents: 'none'
+                          top: "50%",
+                          left: "50%",
+                          transform: "translate(-50%, -50%)",
+                          width: "20px",
+                          height: "20px",
+                          pointerEvents: "none",
                         }}
                       />
                     </>
                   ) : (
                     <div className="d-flex justify-content-center align-items-center h-100 bg-light">
-                      <p className="mb-0 text-muted small">Location not available</p>
+                      <p className="mb-0 text-muted small">
+                        Location not available
+                      </p>
                     </div>
                   )}
                 </div>
@@ -150,25 +175,29 @@ export default function MechanicJobDetail() {
 
           {/* Right Column - Stats */}
           <div className="col-md-6">
-            <div className=" detailsBox rounded-4">
+            <div className="detailsBox rounded-4">
               <div className="d-flex justify-content-between">
                 <h6 className="fw-bold fs-5">Customer:</h6>
                 <h6 className="colorOrange">Job Status</h6>
               </div>
               <div className="d-flex justify-content-between">
-                <div className="d-flex align-items-center">
+                <div className="d-flex align-items-center gap-2 my-3">
                   <img src={job.driver?.avatar || CustomerPic} alt="" />
-                  <p className="colorOrange">{job.driver?.first_name || 'N/A'} {job.driver?.last_name || ''}</p>
+                  <p className="colorOrange mb-0">
+                    {job.driver?.first_name || "N/A"}{" "}
+                    {job.driver?.last_name || ""}
+                  </p>
                 </div>
                 <div style={{ height: "10px" }} className=" align-items-center">
-                  <CustomButton label={job.status === 'ongoing' ? 'Ongoing' : 'Completed'} className="statusBtn" />
+                  <CustomButton
+                    label={job.status === "ongoing" ? "Ongoing" : "Completed"}
+                    className="statusBtn"
+                  />
                 </div>
               </div>
               <div className="p-0">
                 <h6 className="fw-bold fs-5">Issue</h6>
-                <p className="fw-light">
-                  {job.description}
-                </p>
+                <p className="fw-light">{job.description}</p>
               </div>
               <div className="d-flex justify-content-center">
                 <div className="issuesBox d-flex col-md-12 gap-2 my-2">
@@ -188,13 +217,19 @@ export default function MechanicJobDetail() {
                     src={product.image}
                     alt="product"
                     className="me-3 rounded"
-                    style={{ width: '50px', height: '50px', objectFit: 'cover' }}
+                    style={{
+                      width: "50px",
+                      height: "50px",
+                      objectFit: "cover",
+                    }}
                   />
                   <div>
                     <strong>{product.name}</strong>
                     <p>
                       {" "}
-                      <strong className="mb-0 text-muted small">${product.price}</strong>
+                      <strong className="mb-0 text-muted small">
+                        ${product.price}
+                      </strong>
                     </p>
                     <p className="mb-0 text-muted small">
                       {product.description}

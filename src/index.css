@@ -635,7 +635,7 @@ button:focus-visible {
 }
 
 .chat-messages {
-  flex: 1;
+  /* flex: 1; */
   /* padding: 15px; */
   overflow-y: auto;
   margin-top: 20px;
@@ -1480,6 +1480,14 @@ td {
     text-align: center;
     gap: 4px !important;
   }
+  .indivisualChat .chat-header img {
+    width: 65px !important;
+    height: 65px !important;
+  }
+
+  .indivisualChat .chat-header h5 {
+    font-size: 18px;
+  }
 }
 
 @media (max-width: 576px) {
@@ -1639,7 +1647,14 @@ td {
     font-size: 10px;
     margin-right: 5px;
   }
+  .indivisualChat .chat-header img {
+    width: 50px !important;
+    height: 50px !important;
+  }
 
+  .indivisualChat .chat-header h5 {
+    font-size: 16px;
+  }
   .verticalLine {
     left: 18px;
   }
@@ -1687,9 +1702,15 @@ td {
   .detailsBox {
     height: fit-content !important;
   }
+  .cardBox span {
+    font-size: 16px !important;
+  }
   .settingTabs {
     height: 45px !important;
     font-size: 14px !important;
+  }
+  .message-input {
+    padding: 6px;
   }
   .profileWrapper p {
     font-size: 12px !important;

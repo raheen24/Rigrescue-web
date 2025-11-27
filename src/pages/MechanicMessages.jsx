@@ -87,23 +87,6 @@ const MechanicMessages = () => {
 
   const [onlineUsers, setOnlineUsers] = useState([]);
 
-  const loadMessages = (chatId) => {
-    try {
-      const stored = localStorage.getItem(`chat_messages_${chatId}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error("Error loading messages:", error);
-      return [];
-    }
-  };
-
-  const saveMessages = (chatId, messages) => {
-    try {
-      localStorage.setItem(`chat_messages_${chatId}`, JSON.stringify(messages));
-    } catch (error) {
-      console.error("Error saving messages:", error);
-    }
-  };
 
   useEffect(() => {
     const newSocket = io("https://server1.appsstaging.com:3004", {
@@ -223,11 +206,7 @@ const MechanicMessages = () => {
       };
 
       if (involvesSelected) {
-        setMessages((prev) => {
-          const updatedMessages = [...prev, incoming];
-          saveMessages(selectedChatId, updatedMessages);
-          return updatedMessages;
-        });
+        setMessages((prev) => [...prev, incoming]);
         if (!fromMe && markAsReadMutation) {
           markAsReadMutation
             .mutateAsync({
@@ -250,23 +229,21 @@ const MechanicMessages = () => {
       const messagesList = payload.messages || payload.data || payload;
       console.log("Messages list:", messagesList);
       if (!Array.isArray(messagesList)) return;
-      const mappedMessages = messagesList.map((m) => ({
-        from: m.sender_id === currentUser?.id ? "me" : "them",
-        text: m.message || m.text || m.body,
-        time: m.created_at
-          ? new Date(m.created_at).toLocaleTimeString()
-          : new Date().toLocaleTimeString(),
-        raw: m,
-      }));
-      setMessages(mappedMessages);
-      if (selectedChatId) {
-        saveMessages(selectedChatId, mappedMessages);
-      }
+      setMessages(
+        messagesList.map((m) => ({
+          from: m.sender_id === currentUser?.id ? "me" : "them",
+          text: m.message || m.text || m.body,
+          time: m.created_at
+            ? new Date(m.created_at).toLocaleTimeString()
+            : new Date().toLocaleTimeString(),
+          raw: m,
+        }))
+      );
     };
 
     socket.on("receive_message", onReceive);
     socket.on("chat_history", onChatHistory);
-    socket.on("get_messages_response", onChatHistory);
+    socket.on("response", onChatHistory);
 
     return () => {
       socket.off("receive_message", onReceive);
@@ -280,33 +257,22 @@ const MechanicMessages = () => {
   }, [messages]);
 
   useEffect(() => {
-    if (location.state?.mechanicId && inbox.length > 0) {
+    if (location.state?.mechanicId) {
       const mechanicId = parseInt(location.state.mechanicId);
-      const chat = inbox.find(chat => chat.user.id === mechanicId);
-      if (chat) {
-        setSelectedChatId(chat.user.id);
-      } else {
-        // If not in inbox, set selectedChatId to mechanicId to start new chat
+
+      // clear old messages
+      setMessages([]);
+
+      if (socket && socket.connected && currentUser?.id) {
+        socket.emit("chat:message:list", {
+          sender_id: currentUser.id,
+          receiver_id: mechanicId,
+        });
+
         setSelectedChatId(mechanicId);
-        // Load any existing local messages
-        const chatMessages = loadMessages(mechanicId) || [];
-        setMessages(chatMessages);
-        // Initialize for new chat
-        if (socket && socket.connected && currentUser && currentUser.id) {
-          socket.emit("join_room", {
-            sender_id: currentUser.id,
-            receiver_id: mechanicId,
-          });
-          socket.emit("get_messages", {
-            sender_id: currentUser.id,
-            receiver_id: mechanicId,
-          });
-          setLoadedChats((prev) => new Set([...prev, mechanicId]));
-        }
       }
     }
-  }, [inbox, location.state]);
-
+  }, [socket, location.state, currentUser]);
 
   const handleTyping = () => {
     if (!socket || !currentUser?.id || !selectedChatId) return;
@@ -363,18 +329,7 @@ const MechanicMessages = () => {
     socket.emit("send_message", messageData);
 
     // locally add message immediately (optimistic)
-    const localMessage = {
-      from: "me",
-      text: messageContent,
-      time: new Date().toLocaleTimeString(),
-      raw: messageData,
-    };
-
-    setMessages((prev) => {
-      const updatedMessages = [...prev, localMessage];
-      saveMessages(selectedChatId, updatedMessages);
-      return updatedMessages;
-    });
+   
 
     setNewMessage("");
     setSelectedFile(null);
@@ -392,13 +347,19 @@ const MechanicMessages = () => {
     }
   };
 
-
-
-  const selectedChat = inbox.find((chat) => chat.user.id === selectedChatId) || (location.state?.mechanicData ? { user: location.state.mechanicData, last_message: '', last_message_time: '' } : null);
+  const selectedChat =
+    inbox.find((chat) => chat.user.id === selectedChatId) ||
+    (location.state?.mechanicData
+      ? {
+          user: location.state.mechanicData,
+          last_message: "",
+          last_message_time: "",
+        }
+      : null);
 
   return (
     <div
-      className={`content_section ${
+      className={`content_section indivisualChat ${
         isSideBarOpen ? "" : "content_section_close"
       }  home_page`}
       style={{ padding: 16 }}
@@ -421,156 +382,165 @@ const MechanicMessages = () => {
             marginTop: 20,
           }}
         >
-            {selectedChat ? (
-              <>
-                {/* header */}
-                <div
-                  className="chat-header mb-3 d-flex flex-column align-items-center text-center"
-                  style={{
-                    paddingBottom: 16,
-                  }}
-                >
-                  <img
-                    src={selectedChat.user ? selectedChat.user.avatar || FirstPerson : FirstPerson}
-                    alt={selectedChat.user ? selectedChat.user.first_name : "User"}
-                    className="rounded-circle mb-2"
-                    width="100"
-                    height="100"
-                    style={{ border: "1px solid #f55227" }}
-                  />
-                  <div>
-                    <h5
-                      className="mb-0 text-orange-custom"
-                      style={{ marginBottom: 4 }}
-                    >
-                      {selectedChat.user ? `${selectedChat.user.first_name} ${selectedChat.user.last_name}` : "Unknown User"}
-                    </h5>
-                    {/* <div style={{ fontSize: 13, color: "#6c757d" }}>
+          {selectedChat ? (
+            <>
+              {/* header */}
+              <div
+                className="chat-header mb-3 d-flex flex-column align-items-center text-center"
+                style={{
+                  paddingBottom: 16,
+                }}
+              >
+                <img
+                  src={
+                    selectedChat.user
+                      ? selectedChat.user.avatar || FirstPerson
+                      : FirstPerson
+                  }
+                  alt={
+                    selectedChat.user ? selectedChat.user.first_name : "User"
+                  }
+                  className="rounded-circle mb-2"
+                  width="100"
+                  height="100"
+                  style={{ border: "1px solid #f55227" }}
+                />
+                <div>
+                  <h5
+                    className="mb-0 text-orange-custom"
+                    style={{ marginBottom: 4 }}
+                  >
+                    {selectedChat.user
+                      ? `${selectedChat.user.first_name} ${selectedChat.user.last_name}`
+                      : "Unknown User"}
+                  </h5>
+                  {/* <div style={{ fontSize: 13, color: "#6c757d" }}>
                       {selectedChat.user && isUserOnline(selectedChat.user.id)
                         ? "Online"
                         : "Last seen " + (selectedChat.last_message_time || "")}
                     </div> */}
-                  </div>
                 </div>
+              </div>
 
-                {/* messages area */}
-                <div
-                  className="chat-messages mb-3"
-                  style={{
-                    flex: "1 1 auto",
-                    padding: 20,
-                    overflowY: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                  }}
-                >
-                  {messages.map((msg, idx) => {
-                    const isMe = msg.from === "me";
-                    return (
-                      <div
-                        key={idx}
-                        className={`d-flex ${
-                          isMe ? "justify-content-end" : "justify-content-start"
-                        }`}
-                        style={{ alignItems: "flex-end" }}
-                      >
-                        {!isMe && selectedChat.user && (
-                          <img
-                            src={selectedChat.user.avatar || FirstPerson}
-                            alt={selectedChat.user.first_name}
-                            className="rounded-circle me-2"
-                            width="36"
-                            height="36"
-                            style={{ objectFit: "cover" }}
-                          />
-                        )}
-
-                        <div
-                          style={{
-                            padding: "12px 16px",
-                            borderRadius: "10px 0px 10px 10px",
-                            background: isMe ? "#08173a" : "#e75a36",
-                            color: "#fff",
-                            maxWidth: "70%",
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-                            lineHeight: 1.4,
-                            fontSize: 14,
-                          }}
-                        >
-                          <div
-                            style={{
-                              whiteSpace: "pre-wrap",
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {msg.raw?.type === "image" ? (
-                              <img
-                                src={msg.text}
-                                alt="image"
-                                style={{
-                                  width: 50,
-                                  height: 50,
-                                  objectFit: "cover",
-                                  borderRadius: 10,
-                                  marginTop: 4,
-                                }}
-                              />
-                            ) : (
-                              msg.text
-                            )}
-                          </div>
-                        </div>
-
-                        {isMe && (
-                          <img
-                            src={
-                              currentUser?.avatar ||
-                              "https://i.pravatar.cc/40?img=5"
-                            }
-                            alt="You"
-                            className="rounded-circle ms-2"
-                            width="36"
-                            height="36"
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* typing indicator for self */}
-                  {isTyping && (
+              {/* messages area */}
+              <div
+                className="chat-messages mb-3"
+                style={{
+                  flex: "1 1 auto",
+                  padding: 20,
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                {messages.map((msg, idx) => {
+                  const isMe = msg.from === "me";
+                  return (
                     <div
-                      className="d-flex justify-content-end align-items-center"
-                      style={{ marginTop: 4 }}
+                      key={idx}
+                      className={`d-flex ${
+                        isMe ? "justify-content-end" : "justify-content-start"
+                      }`}
+                      style={{ alignItems: "flex-start" , marginBottom: 10}}
                     >
+                      {!isMe && selectedChat.user && (
+                        <img
+                          src={selectedChat.user.avatar || FirstPerson}
+                          alt={selectedChat.user.first_name}
+                          className="rounded-circle me-2"
+                          width="36"
+                          height="36"
+                          style={{ objectFit: "cover" }}
+                        />
+                      )}
+
                       <div
                         style={{
-                          padding: "8px 12px",
-                          borderRadius: 14,
-                          background: "#f1f1f1",
-                          color: "#333",
-                          display: "inline-flex",
-                          alignItems: "center",
+                          padding: "5px",
+                          borderRadius: "10px 0px 10px 10px",
+                          background: isMe ? "#08173a" : "#e75a36",
+                          color: "#fff",
+                          maxWidth: "70%",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
+                          lineHeight: 1.4,
+                          fontSize: 14,
                         }}
                       >
-                        <TypingDots />
+                        <div
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {msg.raw?.type === "image" ? (
+                            <img
+                              src={msg.text}
+                              alt="image"
+                              style={{
+                                width: 50,
+                                height: 50,
+                                objectFit: "cover",
+                                borderRadius: 10,
+                                marginTop: 4,
+                              }}
+                            />
+                          ) : (
+                            msg.text
+                          )}
+                        </div>
                       </div>
-                      <img
-                        src={
-                          currentUser?.avatar ||
-                          "https://i.pravatar.cc/40?img=5"
-                        }
-                        alt="You"
-                        className="rounded-circle ms-2"
-                        width="30"
-                        height="30"
-                      />
-                    </div>
-                  )}
 
-                  {/* typing indicator inside chat */}
-                  {typingUserId && selectedChat.user && typingUserId === selectedChat.user.id && (
+                      {isMe && (
+                        <img
+                          src={
+                            currentUser?.avatar ||
+                            "https://i.pravatar.cc/40?img=5"
+                          }
+                          alt="You"
+                          className="rounded-circle ms-2"
+                          width="36"
+                          height="36"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* typing indicator for self */}
+                {isTyping && (
+                  <div
+                    className="d-flex justify-content-end align-items-center"
+                    style={{ marginTop: 4 }}
+                  >
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 14,
+                        background: "#f1f1f1",
+                        color: "#333",
+                        display: "inline-flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <TypingDots />
+                    </div>
+                    <img
+                      src={
+                        currentUser?.avatar || "https://i.pravatar.cc/40?img=5"
+                      }
+                      alt="You"
+                      className="rounded-circle ms-2"
+                      width="30"
+                      height="30"
+                    />
+                  </div>
+                )}
+
+                {/* typing indicator inside chat */}
+                {typingUserId &&
+                  selectedChat.user &&
+                  typingUserId === selectedChat.user.id && (
                     <div
                       className="d-flex justify-content-start align-items-center"
                       style={{ marginTop: 4 }}
@@ -597,120 +567,117 @@ const MechanicMessages = () => {
                     </div>
                   )}
 
-                  <div ref={messagesEndRef} />
-                </div>
-              </>
-            ) : null}
+                <div ref={messagesEndRef} />
+              </div>
+            </>
+          ) : null}
 
-            {/* message input */}
-            {selectedChat && (
-              <div
-                className="message-input shadow-lg rounded-top-3"
-                style={{
-                  boxShadow: "0px 0px 6px 0px #007fff",
-                  borderTop: "1px solid #eee",
-                }}
-              >
-                {selectedUrl && (
-                  <div className="d-flex align-items-center gap-2 mb-2">
-                    <img
-                      src={selectedUrl}
-                      alt="preview"
-                      style={{
-                        width: 50,
-                        height: 50,
-                        objectFit: "cover",
-                        borderRadius: 8,
-                      }}
-                    />
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => {
-                        setSelectedUrl(null);
-                        setSelectedFile(null);
-                        if (fileInputRef.current)
-                          fileInputRef.current.value = "";
-                      }}
-                      style={{
-                        border: "none",
-                        background: "transparent",
-                        color: "red",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                )}
-                <div className="d-flex align-items-center gap-2">
-                  <label
-                    htmlFor="file-upload"
-                    className="btn btn-outline-none btn-sm mb-0"
-                    style={{ cursor: isUploading ? "not-allowed" : "pointer" }}
-                  >
-                    {isUploading ? "⏳" : "📎"}
-                  </label>
-                  <input
-                    ref={fileInputRef}
-                    id="file-upload"
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    onChange={async (e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setIsUploading(true);
-                        try {
-                          const uploadResult =
-                            await uploadImageMutation.mutateAsync(file);
-                          setSelectedUrl(uploadResult.data.url);
-                          setSelectedFile(file);
-                        } catch (error) {
-                          console.error("Error uploading image:", error);
-                        } finally {
-                          setIsUploading(false);
-                        }
-                      }
+          {/* message input */}
+          {selectedChat && (
+            <div
+              className="message-input shadow-lg rounded-top-3 rounded-bottom-3"
+              style={{
+                boxShadow: "0px 0px 6px 0px #007fff",
+                borderTop: "1px solid #eee",
+              }}
+            >
+              {selectedUrl && (
+                <div className="d-flex align-items-center gap-2 mb-2">
+                  <img
+                    src={selectedUrl}
+                    alt="preview"
+                    style={{
+                      width: 50,
+                      height: 50,
+                      objectFit: "cover",
+                      borderRadius: 8,
                     }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Type Something..."
-                    className="form-control border-0 shadow-none"
-                    value={newMessage}
-                    onChange={(e) => {
-                      setNewMessage(e.target.value);
-                      setSelectedFile(null);
-                      setSelectedUrl(null);
-                      handleTyping();
-                    }}
-                    onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    style={{ borderRadius: 12, padding: "12px 14px" }}
                   />
                   <button
-                    className="backgroundOrange rounded-3 btn-sm"
-                    onClick={handleSendMessage}
-                    disabled={
-                      (!newMessage.trim() && !selectedUrl) || isUploading
-                    }
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => {
+                      setSelectedUrl(null);
+                      setSelectedFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
                     style={{
-                      background: "#e75a36",
                       border: "none",
-                      padding: "10px 12px",
-                      borderRadius: 8,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      background: "transparent",
+                      color: "red",
                     }}
                   >
-                    <img
-                      src={sendIcon}
-                      alt="Send"
-                      style={{ width: 18, height: 18 }}
-                    />
+                    ✕
                   </button>
                 </div>
+              )}
+              <div className="d-flex align-items-center gap-2">
+                <label
+                  htmlFor="file-upload"
+                  className="btn btn-outline-none btn-sm mb-0"
+                  style={{ cursor: isUploading ? "not-allowed" : "pointer" }}
+                >
+                  {isUploading ? "⏳" : "📎"}
+                </label>
+                <input
+                  ref={fileInputRef}
+                  id="file-upload"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      setIsUploading(true);
+                      try {
+                        const uploadResult =
+                          await uploadImageMutation.mutateAsync(file);
+                        setSelectedUrl(uploadResult.data.url);
+                        setSelectedFile(file);
+                      } catch (error) {
+                        console.error("Error uploading image:", error);
+                      } finally {
+                        setIsUploading(false);
+                      }
+                    }
+                  }}
+                />
+                <input
+                  type="text"
+                  placeholder="Type Something..."
+                  className="form-control border-0 shadow-none"
+                  value={newMessage}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    setSelectedFile(null);
+                    setSelectedUrl(null);
+                    handleTyping();
+                  }}
+                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                  style={{ borderRadius: 12, padding: "0px" }}
+                />
+                <button
+                  className="backgroundOrange rounded-3 btn-sm"
+                  onClick={handleSendMessage}
+                  disabled={(!newMessage.trim() && !selectedUrl) || isUploading}
+                  style={{
+                    background: "#e75a36",
+                    border: "none",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <img
+                    src={sendIcon}
+                    alt="Send"
+                    style={{ width: 18, height: 18 }}
+                  />
+                </button>
               </div>
-            )}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -93,7 +93,7 @@ const Sidebar = ({ isSideBarOpen, toggleSidebar, closeSidebar, isMobile, logoutM
             <li>
               <NavLink
                 to="/fleet/messages"
-                className={({ isActive }) => (isActive ? "active" : "")}
+                className={({ isActive }) => (isActive || location.pathname === '/fleet/driver-messages') ? "active" : ""}
               >
                 <span className="icons">
                   <img src={msgIcon} className="default_icons" alt="" />
@@ -105,7 +105,7 @@ const Sidebar = ({ isSideBarOpen, toggleSidebar, closeSidebar, isMobile, logoutM
             <li>
               <NavLink
                 to="/fleet/settings"
-                className={({ isActive }) => (isActive ? "active" : "")}
+                className={({ isActive }) => (isActive || location.pathname === '/fleet/my-profile' || location.pathname === '/fleet/edit-profile') ? "active" : ""}
               >
                 <span className="icons">
                   <img src={stngsIcon} className="default_icons" alt="" />
@@ -214,7 +214,7 @@ const Sidebar = ({ isSideBarOpen, toggleSidebar, closeSidebar, isMobile, logoutM
             <li>
               <NavLink
                 to="/shop-owner/messages"
-                className={({ isActive }) => (isActive ? "active" : "")}
+                className={({ isActive }) => (isActive || location.pathname === '/shop-owner/mechanic-messages') ? "active" : ""}
               >
                 <span className="icons">
                   <img src={msgIcon} className="default_icons" alt="" />
@@ -226,7 +226,7 @@ const Sidebar = ({ isSideBarOpen, toggleSidebar, closeSidebar, isMobile, logoutM
             <li>
               <NavLink
                 to="/shop-owner/settings"
-                className={({ isActive }) => (isActive ? "active" : "")}
+                className={({ isActive }) => (isActive || location.pathname === '/shop-owner/my-profile' || location.pathname === '/shop-owner/edit-profile') ? "active" : ""}
               >
                 <span className="icons">
                   <img src={stngsIcon} className="default_icons" alt="" />

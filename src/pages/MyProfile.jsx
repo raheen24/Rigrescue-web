@@ -135,14 +135,14 @@ export default function MyProfile() {
           <div className="col-md-6">
             <div className="mb-4">
               <div className="mb-4">
-                <div className="mb-3 d-flex justify-content-between border-bottom">
+                <div className="mb-3 d-flex justify-content-between border-bottom gap-2">
                   <p className="text-muted mb-1">Email Address:</p>
-                  <p className="fw-medium">{profileData?.data?.email || "N/A"}</p>
+                  <p className="fw-medium text-end">{profileData?.data?.email || "N/A"}</p>
                 </div>
 
-                <div className="mb-3 d-flex justify-content-between border-bottom">
+                <div className="mb-3 d-flex justify-content-between border-bottom gap-2">
                   <p className="text-muted mb-1">Phone Number:</p>
-                  <p className="fw-medium">{profileData?.data?.phone || "N/A"}</p>
+                  <p className="fw-medium text-end">{profileData?.data?.phone || "N/A"}</p>
                 </div>
 
                 {/* <div className="mb-3 d-flex justify-content-between border-bottom">
@@ -150,14 +150,14 @@ export default function MyProfile() {
                   <p className="fw-medium">{profileData?.data?.role || "N/A"}</p>
                 </div> */}
 
-                <div className="mb-3 d-flex justify-content-between border-bottom">
+                <div className="mb-3 d-flex justify-content-between border-bottom gap-2">
                   <p className="text-muted mb-1">Website:</p>
-                  <p className="fw-medium">{profileData?.data?.website || "N/A"}</p>
+                  <p className="fw-medium text-end">{profileData?.data?.website || "N/A"}</p>
                 </div>
 
-                <div className="mb-3 d-flex justify-content-between">
+                <div className="mb-3 d-flex justify-content-between gap-2">
                   <p className="text-muted mb-1">Location:</p>
-                  <p className="fw-medium">{profileData?.data?.location || "N/A"}</p>
+                  <p className="fw-medium text-end">{profileData?.data?.location || "N/A"}</p>
                 </div>
               </div>
             </div>

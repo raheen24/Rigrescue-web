@@ -223,16 +223,16 @@ export default function DriverDetails() {
                         />
                         <div
                           className="border-dashed border-orange rounded-3 text-center py-4 position-relative"
-                          style={{ color: "#E25C28", cursor: "pointer", backgroundImage: licensePreview ? `url(${licensePreview})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', minHeight: '200px' }}
+                          style={{ color: "#E25C28", cursor: "pointer", backgroundImage: licensePreview ? `url(${licensePreview})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
                           <label htmlFor="license-upload" className="w-100 h-100 d-flex align-items-center justify-content-center" style={{ cursor: "pointer" , flexDirection:"column" }}>
                             {!licensePreview && (
-                              <div className="d-flex ">
+                              <div className="d-flex gap-3">
                                 <img
                                   src={picturePdf}
                                   alt="Driver License"
                                   className="img-fluid"
-                                  width="30"
+                                  width="50px"
                                   height="auto"
                                 />
                                 <p className="mt-2">Click to upload Driver License</p>

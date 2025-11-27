@@ -29,7 +29,7 @@ export default function JobDetails() {
   const [showModal2, setShowModal2] = useState(false);
 
   const handleNavigate = () => {
-    navigate("/fleet/messages");
+    navigate("/fleet/driver-messages", { state: { driverId: jobDetails.driver.id, driverData: jobDetails.driver } });
   };
   const handleShow2 = () => setShowModal2(true);
   const handleHide2 = () => setShowModal2(false);

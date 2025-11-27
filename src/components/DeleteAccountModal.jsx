@@ -20,7 +20,7 @@ function DeleteAccountModal({ show, onHide, onConfirm }) {
   const location = useLocation();
 
   const handleConfirm = () => {
-    if (onConfirm) onConfirm(); // Call original confirm logic if any
+    if (onConfirm) onConfirm(); 
 
     if (location.pathname.startsWith("/shop")) {
       navigate("/shop-owner/my-mechanics");
@@ -35,6 +35,7 @@ function DeleteAccountModal({ show, onHide, onConfirm }) {
         backdropFilter: "blur(5px)",
         backgroundColor: "rgba(0, 0, 0, 0.3)",
       }}
+      onClick={onHide}
     >
       <div
         className="modal-dialog"
@@ -46,6 +47,7 @@ function DeleteAccountModal({ show, onHide, onConfirm }) {
           left: "50%",
           transform: "translate(-50%, -50%)",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-content border border-black rounded-3">
           <div className="modal-body px-4 py-3 d-flex flex-column justify-content-between text-center">

@@ -99,7 +99,7 @@ export default function EditProduct() {
     fileInputRef.current.value = null; 
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className={`content_section ${
@@ -149,7 +149,7 @@ export default function EditProduct() {
                     cursor: "pointer",
                     userSelect: "none",
                     backgroundImage: previewUrl ? `url(${previewUrl})` : undefined,
-                    backgroundSize: "cover",
+                    backgroundSize: "contain",
                     backgroundPosition: "center",
                     backgroundRepeat: "no-repeat",
                     minHeight: "120px",

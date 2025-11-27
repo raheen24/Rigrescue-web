@@ -15,6 +15,50 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { io } from "socket.io-client";
 import { useProfileQuery, useUploadImageMutation } from "../services/apiQueries";
 
+const TypingDots = () => (
+  <span style={{ display: "inline-block", marginLeft: 8 }}>
+    <span
+      style={{
+        display: "inline-block",
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: "#999",
+        marginRight: 4,
+        animation: "typing-dot 1s infinite",
+      }}
+    />
+    <span
+      style={{
+        display: "inline-block",
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: "#999",
+        marginRight: 4,
+        animation: "typing-dot 1s 0.2s infinite",
+      }}
+    />
+    <span
+      style={{
+        display: "inline-block",
+        width: 6,
+        height: 6,
+        borderRadius: "50%",
+        background: "#999",
+        animation: "typing-dot 1s 0.4s infinite",
+      }}
+    />
+    <style>{`
+      @keyframes typing-dot {
+        0% { transform: translateY(0); opacity: 0.4; }
+        50% { transform: translateY(-4px); opacity: 1; }
+        100% { transform: translateY(0); opacity: 0.4; }
+      }
+    `}</style>
+  </span>
+);
+
 const SettingsPage = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "payment");
@@ -53,30 +97,18 @@ const SettingsPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedUrl, setSelectedUrl] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [typingUserId, setTypingUserId] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const emitStopTypingRef = useRef(null);
   const { data: profileData } = useProfileQuery();
   const currentUser = profileData?.data;
   const adminId = currentUser?.admin?.id;
   const uploadImageMutation = useUploadImageMutation();
+  const [onlineUsers, setOnlineUsers] = useState([]);
 
-  const loadMessages = () => {
-    try {
-      const stored = localStorage.getItem('admin_support_messages');
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error("Error loading admin support messages:", error);
-      return [];
-    }
-  };
-
-  const saveMessages = (messages) => {
-    try {
-      localStorage.setItem('admin_support_messages', JSON.stringify(messages));
-    } catch (error) {
-      console.error("Error saving admin support messages:", error);
-    }
-  };
   const handleModalSubmit = async (formData) => {
     if (formData.type === 'card') {
       const { error, response } = await apiHelper("POST", "/web/fleet/card/add", {}, { payment_method_id: formData.payment_method_id });
@@ -138,11 +170,7 @@ const SettingsPage = () => {
       console.log("Socket connected for support:", newSocket.id);
       newSocket.emit("user_online", { user_id: currentUser.id });
       if (adminId) {
-        newSocket.emit("join_room", {
-          sender_id: currentUser.id,
-          receiver_id: adminId,
-        });
-        newSocket.emit("get_messages", {
+        newSocket.emit("chat:message:list", {
           sender_id: currentUser.id,
           receiver_id: adminId,
         });
@@ -167,6 +195,75 @@ const SettingsPage = () => {
   useEffect(() => {
     if (!socket || activeTab !== "support") return;
 
+    const handleOnlineUsers = (users) => {
+      if (!Array.isArray(users)) return;
+      const normalized = users.map((u) => (typeof u === "object" ? u.id : u));
+      setOnlineUsers(normalized);
+    };
+
+    socket.on("online_users", handleOnlineUsers);
+
+    socket.on("user_online", (userObj) => {
+      if (!userObj) return;
+      setOnlineUsers((prev) => {
+        const id = typeof userObj === "object" ? userObj.id : userObj;
+        if (!prev.includes(id)) return [...prev, id];
+        return prev;
+      });
+    });
+
+    socket.on("user_offline", (userObj) => {
+      if (!userObj) return;
+      const id = typeof userObj === "object" ? userObj.id : userObj;
+      setOnlineUsers((prev) => prev.filter((x) => x !== id));
+    });
+
+    return () => {
+      socket.off("online_users", handleOnlineUsers);
+      socket.off("user_online");
+      socket.off("user_offline");
+    };
+  }, [socket, activeTab]);
+
+  const isUserOnline = (id) => onlineUsers.includes(id);
+
+  useEffect(() => {
+    if (!socket || activeTab !== "support") return;
+
+    const onTyping = (data) => {
+      if (!data) return;
+      if (data.sender_id && data.receiver_id) {
+        if (
+          data.sender_id === adminId &&
+          data.receiver_id === currentUser?.id
+        ) {
+          setTypingUserId(data.sender_id);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(
+            () => setTypingUserId(null),
+            2000
+          );
+        } else {
+          setTypingUserId(data.sender_id);
+          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(
+            () => setTypingUserId(null),
+            1600
+          );
+        }
+      }
+    };
+
+    socket.on("typing", onTyping);
+
+    return () => {
+      socket.off("typing", onTyping);
+    };
+  }, [socket, activeTab, adminId, currentUser?.id]);
+
+  useEffect(() => {
+    if (!socket || activeTab !== "support") return;
+
     const onReceive = (messageData) => {
       if (!messageData) return;
       const involvesAdmin =
@@ -182,17 +279,15 @@ const SettingsPage = () => {
             : new Date().toLocaleTimeString(),
           raw: messageData,
         };
-        setMessages((prev) => {
-          const updated = [...prev, incoming];
-          saveMessages(updated);
-          return updated;
-        });
+        setMessages((prev) => [...prev, incoming]);
       }
     };
 
     const onChatHistory = (payload) => {
+      console.log("Received admin support chat history payload:", payload);
       if (!payload) return;
       const messagesList = payload.messages || payload.data || payload;
+      console.log("Admin support messages list:", messagesList);
       if (!Array.isArray(messagesList)) return;
       const formattedMessages = messagesList.map((m) => ({
         from: m.sender_id === currentUser?.id ? "me" : "them",
@@ -202,32 +297,25 @@ const SettingsPage = () => {
           : new Date().toLocaleTimeString(),
         raw: m,
       }));
-      setMessages((prev) => {
-        const existingIds = new Set(prev.map(m => m.raw?.id || `${m.raw?.sender_id}-${m.raw?.created_at}`));
-        const newMessages = formattedMessages.filter(m => !existingIds.has(m.raw?.id || `${m.raw?.sender_id}-${m.raw?.created_at}`));
-        const updated = [...prev, ...newMessages];
-        saveMessages(updated);
-        return updated;
-      });
+
+      setMessages(formattedMessages);
     };
 
     socket.on("receive_message", onReceive);
     socket.on("chat_history", onChatHistory);
-    socket.on("get_messages_response", onChatHistory);
+    socket.on("response", onChatHistory);
 
     return () => {
       socket.off("receive_message", onReceive);
       socket.off("chat_history", onChatHistory);
-      socket.off("get_messages_response", onChatHistory);
+      socket.off("response", onChatHistory);
     };
   }, [socket, activeTab, adminId, currentUser?.id]);
 
   useEffect(() => {
     if (activeTab === "support") {
-      const storedMessages = loadMessages();
-      if (storedMessages.length > 0) {
-        setMessages(storedMessages);
-      } else if (adminId) {
+      // Show welcome message initially
+      if (adminId) {
         const dummyMessage = {
           from: "them",
           text: "Hello! How can I help you?",
@@ -235,7 +323,6 @@ const SettingsPage = () => {
           raw: { sender_id: adminId, receiver_id: currentUser?.id, message: "Hello! How can I help you?" },
         };
         setMessages([dummyMessage]);
-        saveMessages([dummyMessage]);
       }
     }
   }, [activeTab, adminId, currentUser?.id]);
@@ -312,18 +399,36 @@ const SettingsPage = () => {
     }
   };
 
+  const handleTyping = () => {
+    if (!socket || !currentUser?.id || !adminId) return;
+
+    setIsTyping(true);
+    socket.emit("typing", {
+      sender_id: currentUser.id,
+      receiver_id: adminId,
+    });
+    if (emitStopTypingRef.current) clearTimeout(emitStopTypingRef.current);
+    emitStopTypingRef.current = setTimeout(() => {
+      socket.emit("stop_typing", {
+        sender_id: currentUser.id,
+        receiver_id: adminId,
+      });
+      setIsTyping(false);
+    }, 1500);
+  };
+
   // Send message to admin
   const handleSendMessage = async () => {
-    if (
-      (!newMessage.trim() && !selectedUrl) ||
-      !socket ||
-      !adminId ||
-      !currentUser?.id ||
-      !socket.connected ||
-      isUploading
-    ) {
-      return;
-    }
+    // if (
+    //   (!newMessage.trim() && !selectedUrl) ||
+    //   !socket ||
+    //   !adminId ||
+    //   !currentUser?.id ||
+    //   !socket.connected ||
+    //   isUploading
+    // ) {
+    //   return;
+    // }
 
     let messageContent = newMessage;
     let messageType = "text";
@@ -340,7 +445,7 @@ const SettingsPage = () => {
       type: messageType,
     };
 
-    socket.emit("send_message", messageData);
+    socket.emit("chat:message:send", messageData);
 
     const localMessage = {
       from: "me",
@@ -349,17 +454,21 @@ const SettingsPage = () => {
       raw: messageData,
     };
 
-    setMessages((prev) => {
-      const updated = [...prev, localMessage];
-      saveMessages(updated);
-      return updated;
-    });
+    setMessages((prev) => [...prev, localMessage]);
 
     setNewMessage("");
     setSelectedFile(null);
     setSelectedUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    setIsTyping(false);
+    // send stop typing too
+    if (socket) {
+      socket.emit("stop_typing", {
+        sender_id: currentUser.id,
+        receiver_id: adminId,
+      });
     }
   };
 
@@ -502,10 +611,17 @@ const SettingsPage = () => {
                 height="60"
                 // style={{ objectFit: "cover" }}
               />
-              <h5 className="mb-0 text-orange-custom">Admin Support</h5>
+              <div>
+                <h5 className="mb-0 text-orange-custom">Admin Support</h5>
+                <div style={{ fontSize: 13, color: "#6c757d" }}>
+                  {adminId && isUserOnline(adminId)
+                    ? "Online"
+                    : "Last seen recently"}
+                </div>
+              </div>
             </div>
 
-            <div className="chat-messages flex-grow-1 overflow-auto mt-3">
+            <div className="chat-messages flex-grow-1 overflow-auto mt-3 h-[400px] p-2">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
@@ -557,6 +673,65 @@ const SettingsPage = () => {
                   )}
                 </div>
               ))}
+
+              {/* typing indicator for self */}
+              {isTyping && (
+                <div
+                  className="d-flex justify-content-end align-items-center"
+                  style={{ marginTop: 4 }}
+                >
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 14,
+                      background: "#f1f1f1",
+                      color: "#333",
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <TypingDots />
+                  </div>
+                  <img
+                    src={currentUser?.avatar || "https://i.pravatar.cc/40?img=5"}
+                    alt="You"
+                    className="rounded-circle ms-2"
+                    width="30"
+                    height="30"
+                  />
+                </div>
+              )}
+
+              {/* typing indicator inside chat */}
+              {typingUserId &&
+                adminId &&
+                typingUserId === adminId && (
+                  <div
+                    className="d-flex justify-content-start align-items-center"
+                    style={{ marginTop: 4 }}
+                  >
+                    <img
+                      src={AccountadminIcon}
+                      alt="typing"
+                      className="rounded-circle me-2"
+                      width="30"
+                      height="30"
+                    />
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: 14,
+                        background: "#f1f1f1",
+                        color: "#333",
+                        display: "inline-flex",
+                        alignItems: "center",
+                      }}
+                    >
+                      <TypingDots />
+                    </div>
+                  </div>
+                )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -571,7 +746,7 @@ const SettingsPage = () => {
               </small>
             </div> */}
             <div
-              className="message-input shadow-lg rounded-top-3 p-2"
+              className="message-input shadow-lg rounded mb-1 p-2"
               style={{ boxShadow: "0px 0px 6px 0px #007fff" }}
             >
               {selectedUrl && (
@@ -619,9 +794,10 @@ const SettingsPage = () => {
                     setNewMessage(e.target.value);
                     setSelectedFile(null);
                     setSelectedUrl(null);
+                    handleTyping();
                   }}
                   onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                  style={{ borderRadius: 12, padding: "12px 14px" }}
+                  style={{ padding: "0px" }}
                 />
                 <button
                   className="backgroundOrange rounded-3 btn-sm"

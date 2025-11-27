@@ -23,6 +23,12 @@ const DeleteAccountModal = ({ open, onClose, onConfirm }) => {
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content rounded-4 text-center">
           <div className="position-relative mt-2 rounded-top-4">
+            <button
+              type="button"
+              className="btn-close position-absolute top-0 end-0 m-2"
+              onClick={onClose}
+              aria-label="Close"
+            ></button>
             <img src={deleteIcon} alt="" className="successImg" />
             <h4 className="modal-title text-center text-black m-2">
               Delete Account

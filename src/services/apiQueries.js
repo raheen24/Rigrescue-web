@@ -236,10 +236,11 @@ export const useDeleteProductMutation = () => {
   });
 };
 
-export const useMarkChatAsReadMutation = () => {
+export const useMarkChatAsReadMutation = (options = {}) => {
   return useMutation({
     mutationFn: (data) =>
       handleApiResponse(apiHelper("POST", "/web/chat/read-status", {}, data)),
+    ...options,
   });
 };
 

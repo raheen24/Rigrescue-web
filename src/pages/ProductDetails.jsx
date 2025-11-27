@@ -126,7 +126,7 @@ export default function ProductDetails() {
                       src={img}
                       alt={`product-${index}`}
                       className="rounded-4 prodimgofDetail"
-                      style={{border:"1px solid #f55227"}}
+                      style={{border:"1px solid #f55227" , height: "300px", objectFit: "cover" }}
                     />
                   </SwiperSlide>
                 ))}
