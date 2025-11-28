@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fontFamily } from "../assets/fonts";
 import roleImage from "/src/assets/images/logo.png";
-import backgroundImage from "/src/assets/images/Background.jpg";
+import backgroundImage from "/src/assets/images/background.jpg";
 import splashLogo from "/src/assets/images/rigrescue-logo.png";
 import { useNavigate } from "react-router-dom";
 
